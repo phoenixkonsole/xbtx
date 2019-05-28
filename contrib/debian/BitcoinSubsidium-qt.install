@@ -1,0 +1,6 @@
+usr/local/bin/BitcoinSubsidium-qt usr/bin
+share/pixmaps/BitcoinSubsidium32.xpm usr/share/pixmaps
+share/pixmaps/BitcoinSubsidium16.xpm usr/share/pixmaps
+share/pixmaps/BitcoinSubsidium128.png usr/share/pixmaps
+debian/BitcoinSubsidium-qt.desktop usr/share/applications
+debian/BitcoinSubsidium-qt.protocol usr/share/kde4/services/

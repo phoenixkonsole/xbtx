@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#  BitcoinSubsidiumd The BitcoinSubsidium core server.
+#
+#
+# chkconfig: 345 80 20
+# description: BitcoinSubsidiumd
+# processname: BitcoinSubsidiumd
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/BitcoinSubsidiumd, see below
+if [ -f /etc/sysconfig/BitcoinSubsidiumd ]; then
+        . /etc/sysconfig/BitcoinSubsidiumd
+fi
+
+RETVAL=0
+
+prog=BitcoinSubsidiumd
+# you can override the lockfile via BitcoinSubsidiumD_LOCKFILE in /etc/sysconfig/BitcoinSubsidiumd
+lockfile=${BitcoinSubsidiumD_LOCKFILE-/var/lock/subsys/BitcoinSubsidiumd}
+
+# BitcoinSubsidiumd defaults to /usr/bin/BitcoinSubsidiumd, override with BitcoinSubsidiumD_BIN
+BitcoinSubsidiumd=${BitcoinSubsidiumD_BIN-/usr/bin/BitcoinSubsidiumd}
+
+# BitcoinSubsidiumd opts default to -disablewallet, override with BitcoinSubsidiumD_OPTS
+BitcoinSubsidiumd_opts=${BitcoinSubsidiumD_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $BitcoinSubsidiumd $BitcoinSubsidiumd_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

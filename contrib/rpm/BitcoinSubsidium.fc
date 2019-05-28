@@ -1,0 +1,8 @@
+/usr/bin/BitcoinSubsidium-cli		--	gen_context(system_u:object_r:BitcoinSubsidium_exec_t,s0)
+/usr/sbin/BitcoinSubsidiumd		--	gen_context(system_u:object_r:BitcoinSubsidium_exec_t,s0)
+/usr/lib(64)?/BitcoinSubsidium/BitcoinSubsidiumd		--	gen_context(system_u:object_r:BitcoinSubsidium_exec_t,s0)
+
+/etc/BitcoinSubsidium(/.*)?		gen_context(system_u:object_r:BitcoinSubsidium_conf_t,s0)
+/var/lib/BitcoinSubsidium(/.*)?		gen_context(system_u:object_r:BitcoinSubsidium_var_lib_t,s0)
+
+(/var)?/run/BitcoinSubsidiumd(/.*)?   gen_context(system_u:object_r:BitcoinSubsidium_var_run_t,s0)

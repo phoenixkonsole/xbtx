@@ -1,0 +1,33 @@
+# /etc/conf.d/BitcoinSubsidiumd: config file for /etc/init.d/BitcoinSubsidiumd
+
+# Config file location
+#BitcoinSubsidiumD_CONFIGFILE="/etc/BitcoinSubsidium/BitcoinSubsidium.conf"
+
+# What directory to write pidfile to?  (created and owned by $BitcoinSubsidiumD_USER)
+#BitcoinSubsidiumD_PIDDIR="/var/run/BitcoinSubsidiumd"
+
+# What filename to give the pidfile
+#BitcoinSubsidiumD_PIDFILE="${BitcoinSubsidiumD_PIDDIR}/BitcoinSubsidiumd.pid"
+
+# Where to write BitcoinSubsidiumd data (be mindful that the blockchain is large)
+#BitcoinSubsidiumD_DATADIR="/var/lib/BitcoinSubsidiumd"
+
+# User and group to own BitcoinSubsidiumd process
+#BitcoinSubsidiumD_USER="BitcoinSubsidium"
+#BitcoinSubsidiumD_GROUP="BitcoinSubsidium"
+
+# Path to BitcoinSubsidiumd executable
+#BitcoinSubsidiumD_BIN="/usr/bin/BitcoinSubsidiumd"
+
+# Nice value to run BitcoinSubsidiumd under
+#BitcoinSubsidiumD_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#BitcoinSubsidiumD_OPTS=""
+
+# The timeout in seconds OpenRC will wait for BitcoinSubsidiumd to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+BitcoinSubsidiumD_SIGTERM_TIMEOUT=60

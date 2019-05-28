@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=BitcoinSubsidium Core
+Comment=Connect to the BitcoinSubsidium P2P Network
+Comment[de]=Verbinde mit dem BitcoinSubsidium peer-to-peer Netzwerk
+Comment[fr]=BitcoinSubsidium, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=BitcoinSubsidium, eşten eşe kriptografik sanal para birimi
+Exec=BitcoinSubsidium-qt %u
+Terminal=false
+Type=Application
+Icon=BitcoinSubsidium128
+MimeType=x-scheme-handler/BitcoinSubsidium;
+Categories=Office;Finance;
