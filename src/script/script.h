@@ -184,9 +184,9 @@ enum opcodetype
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
 
-    /** XBTS START */
-    OP_XBTS_ASSET = 0xc0,
-    /** XBTS END */
+    /** XBTX START */
+    OP_XBTX_ASSET = 0xc0,
+    /** XBTX END */
 
 
     // template matching params
@@ -653,7 +653,7 @@ public:
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
 
-    /** XBTS START */
+    /** XBTX START */
     enum class txnouttype;
     bool IsAssetScript(int& nType, bool& fIsOwner, int& nStartingIndex) const;
     bool IsAssetScript(int& nType, bool& fIsOwner) const;
@@ -663,7 +663,7 @@ public:
     bool IsReissueAsset() const;
     bool IsTransferAsset() const;
     bool IsAsset() const;
-    /** XBTS END */
+    /** XBTX END */
 
     /** Used for obsolete pay-to-pubkey addresses indexing. */
     bool IsPayToPublicKey() const;

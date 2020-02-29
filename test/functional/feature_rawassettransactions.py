@@ -48,7 +48,7 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         self.num_nodes = 3
 
     def activate_assets(self):
-        self.log.info("Generating XBTS for node[0] and activating assets...")
+        self.log.info("Generating XBTX for node[0] and activating assets...")
         n0, n1, n2 = self.nodes[0], self.nodes[1], self.nodes[2]
 
         n0.generate(1)
@@ -122,19 +122,19 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSr = '72766e72' #XBTSr
+        XBTXr = '72766e72' #XBTXr
         op_drop = '75'
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSr in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXr in bytes_to_hex_str(out.scriptPubKey):
                 script_hex = bytes_to_hex_str(out.scriptPubKey)
-                reissue_script_hex = script_hex[script_hex.index(XBTSr) + len(XBTSr):-len(op_drop)]
+                reissue_script_hex = script_hex[script_hex.index(XBTXr) + len(XBTXr):-len(op_drop)]
                 f = BytesIO(hex_str_to_bytes(reissue_script_hex))
                 reissue = CScriptReissue()
                 reissue.deserialize(f)
                 reissue.name = alternate_asset_name.encode()
                 tampered_reissue = bytes_to_hex_str(reissue.serialize())
-                tampered_script = script_hex[:script_hex.index(XBTSr)] + XBTSr + tampered_reissue + op_drop
+                tampered_script = script_hex[:script_hex.index(XBTXr)] + XBTXr + tampered_reissue + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tx_hex_bad = bytes_to_hex_str(tx.serialize())
         tx_signed = n0.signrawtransaction(tx_hex_bad)['hex']
@@ -145,9 +145,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         # remove the owner output from vout
-        bad_vout = list(filter(lambda out : XBTSt not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
+        bad_vout = list(filter(lambda out : XBTXt not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
         tx.vout = bad_vout
         tx_hex_bad = bytes_to_hex_str(tx.serialize())
         tx_signed = n0.signrawtransaction(tx_hex_bad)['hex']
@@ -181,9 +181,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_hex))
         tx.deserialize(f)
-        XBTSo = '72766e6f' #XBTSo
+        XBTXo = '72766e6f' #XBTXo
         # remove the owner output from vout
-        bad_vout = list(filter(lambda out : XBTSo not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
+        bad_vout = list(filter(lambda out : XBTXo not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
         tx.vout = bad_vout
         tx_bad_issue = bytes_to_hex_str(tx.serialize())
         tx_bad_issue_signed = n0.signrawtransaction(tx_bad_issue)['hex']
@@ -195,9 +195,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_hex))
         tx.deserialize(f)
-        XBTSo = '72766e6f' #XBTSo
+        XBTXo = '72766e6f' #XBTXo
         # find the owner output from vout and insert a duplicate back in
-        owner_vout = list(filter(lambda out : XBTSo in bytes_to_hex_str(out.scriptPubKey), tx.vout))[0]
+        owner_vout = list(filter(lambda out : XBTXo in bytes_to_hex_str(out.scriptPubKey), tx.vout))[0]
         tx.vout.insert(-1, owner_vout)
         tx_bad_issue = bytes_to_hex_str(tx.serialize())
         tx_bad_issue_signed = n0.signrawtransaction(tx_bad_issue)['hex']
@@ -209,9 +209,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_hex))
         tx.deserialize(f)
-        XBTSq = '72766e71' #XBTSq
+        XBTXq = '72766e71' #XBTXq
         # remove the owner output from vout
-        bad_vout = list(filter(lambda out : XBTSq not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
+        bad_vout = list(filter(lambda out : XBTXq not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
         tx.vout = bad_vout
         tx_bad_issue = bytes_to_hex_str(tx.serialize())
         tx_bad_issue_signed = n0.signrawtransaction(tx_bad_issue)['hex']
@@ -223,21 +223,21 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_hex))
         tx.deserialize(f)
-        XBTSo = '72766e6f' #XBTSo
+        XBTXo = '72766e6f' #XBTXo
         op_drop = '75'
         # change the owner name
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSo in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXo in bytes_to_hex_str(out.scriptPubKey):
                 owner_out = out
                 owner_script_hex = bytes_to_hex_str(owner_out.scriptPubKey)
-                asset_script_hex = owner_script_hex[owner_script_hex.index(XBTSo) + len(XBTSo):-len(op_drop)]
+                asset_script_hex = owner_script_hex[owner_script_hex.index(XBTXo) + len(XBTXo):-len(op_drop)]
                 f = BytesIO(hex_str_to_bytes(asset_script_hex))
                 owner = CScriptOwner()
                 owner.deserialize(f)
                 owner.name = b"NOT_MY_ASSET!"
                 tampered_owner = bytes_to_hex_str(owner.serialize())
-                tampered_script = owner_script_hex[:owner_script_hex.index(XBTSo)] + XBTSo + tampered_owner + op_drop
+                tampered_script = owner_script_hex[:owner_script_hex.index(XBTXo)] + XBTXo + tampered_owner + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tx_bad_issue = bytes_to_hex_str(tx.serialize())
         tx_bad_issue_signed = n0.signrawtransaction(tx_bad_issue)['hex']
@@ -249,14 +249,14 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_hex))
         tx.deserialize(f)
-        XBTSo = '72766e6f' #XBTSo
-        XBTSO = '52564e4f' #XBTSO
+        XBTXo = '72766e6f' #XBTXo
+        XBTXO = '52564e4f' #XBTXO
         # change the owner output script type to be invalid
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSo in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXo in bytes_to_hex_str(out.scriptPubKey):
                 owner_script_hex = bytes_to_hex_str(out.scriptPubKey)
-                tampered_script = owner_script_hex.replace(XBTSo, XBTSO)
+                tampered_script = owner_script_hex.replace(XBTXo, XBTXO)
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tx_bad_issue = bytes_to_hex_str(tx.serialize())
         tx_bad_issue_signed = n0.signrawtransaction(tx_bad_issue)['hex']
@@ -385,17 +385,17 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
         # change asset outputs from 400,600 to 500,500
         for i in range(1, 3):
             script_hex = bytes_to_hex_str(tx.vout[i].scriptPubKey)
-            f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTSt) + len(XBTSt):-len(op_drop)]))
+            f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTXt) + len(XBTXt):-len(op_drop)]))
             transfer = CScriptTransfer()
             transfer.deserialize(f)
             transfer.amount = 50000000000
             tampered_transfer = bytes_to_hex_str(transfer.serialize())
-            tampered_script = script_hex[:script_hex.index(XBTSt)] + XBTSt + tampered_transfer + op_drop
+            tampered_script = script_hex[:script_hex.index(XBTXt)] + XBTXt + tampered_transfer + op_drop
             tx.vout[i].scriptPubKey = hex_str_to_bytes(tampered_script)
         tampered_hex = bytes_to_hex_str(tx.serialize())
         assert_raises_rpc_error(-26, "mandatory-script-verify-flag-failed (Signature must be zero for failed CHECK(MULTI)SIG operation)",
@@ -450,19 +450,19 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
         # change asset name
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSt in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXt in bytes_to_hex_str(out.scriptPubKey):
                 script_hex = bytes_to_hex_str(out.scriptPubKey)
-                f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTSt) + len(XBTSt):-len(op_drop)]))
+                f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTXt) + len(XBTXt):-len(op_drop)]))
                 transfer = CScriptTransfer()
                 transfer.deserialize(f)
                 transfer.name = b"ASSET_DOES_NOT_EXIST"
                 tampered_transfer = bytes_to_hex_str(transfer.serialize())
-                tampered_script = script_hex[:script_hex.index(XBTSt)] + XBTSt + tampered_transfer + op_drop
+                tampered_script = script_hex[:script_hex.index(XBTXt)] + XBTXt + tampered_transfer + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tampered_hex = bytes_to_hex_str(tx.serialize())
         assert_raises_rpc_error(-26, "bad-txns-transfer-asset-not-exist",
@@ -476,19 +476,19 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
         # change asset name
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSt in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXt in bytes_to_hex_str(out.scriptPubKey):
                 script_hex = bytes_to_hex_str(out.scriptPubKey)
-                f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTSt) + len(XBTSt):-len(op_drop)]))
+                f = BytesIO(hex_str_to_bytes(script_hex[script_hex.index(XBTXt) + len(XBTXt):-len(op_drop)]))
                 transfer = CScriptTransfer()
                 transfer.deserialize(f)
                 transfer.name = alternate_asset_name.encode()
                 tampered_transfer = bytes_to_hex_str(transfer.serialize())
-                tampered_script = script_hex[:script_hex.index(XBTSt)] + XBTSt + tampered_transfer + op_drop
+                tampered_script = script_hex[:script_hex.index(XBTXt)] + XBTXt + tampered_transfer + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tampered_hex = bytes_to_hex_str(tx.serialize())
         assert_raises_rpc_error(-26, "bad-tx-inputs-outputs-mismatch Bad Transaction - " +
@@ -500,9 +500,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         # remove the transfer output from vout
-        bad_vout = list(filter(lambda out : XBTSt not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
+        bad_vout = list(filter(lambda out : XBTXt not in bytes_to_hex_str(out.scriptPubKey), tx.vout))
         tx.vout = bad_vout
         tampered_hex = bytes_to_hex_str(tx.serialize())
         assert_raises_rpc_error(-26, "bad-tx-asset-inputs-size-does-not-match-outputs-size",
@@ -1313,21 +1313,21 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_issue_sub_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
         # change the transfer amount
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSt in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXt in bytes_to_hex_str(out.scriptPubKey):
                 transfer_out = out
                 transfer_script_hex = bytes_to_hex_str(transfer_out.scriptPubKey)
-                asset_script_hex = transfer_script_hex[transfer_script_hex.index(XBTSt) + len(XBTSt):-len(op_drop)]
+                asset_script_hex = transfer_script_hex[transfer_script_hex.index(XBTXt) + len(XBTXt):-len(op_drop)]
                 f = BytesIO(hex_str_to_bytes(asset_script_hex))
                 transfer = CScriptTransfer()
                 transfer.deserialize(f)
                 transfer.amount = 0
                 tampered_transfer = bytes_to_hex_str(transfer.serialize())
-                tampered_script = transfer_script_hex[:transfer_script_hex.index(XBTSt)] + XBTSt + tampered_transfer + op_drop
+                tampered_script = transfer_script_hex[:transfer_script_hex.index(XBTXt)] + XBTXt + tampered_transfer + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tx_bad_transfer = bytes_to_hex_str(tx.serialize())
         tx_bad_transfer_signed = n0.signrawtransaction(tx_bad_transfer)['hex']
@@ -1390,21 +1390,21 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_transfer_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
         # change the transfer amounts = 0
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSt in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXt in bytes_to_hex_str(out.scriptPubKey):
                 transfer_out = out
                 transfer_script_hex = bytes_to_hex_str(transfer_out.scriptPubKey)
-                asset_script_hex = transfer_script_hex[transfer_script_hex.index(XBTSt) + len(XBTSt):-len(op_drop)]
+                asset_script_hex = transfer_script_hex[transfer_script_hex.index(XBTXt) + len(XBTXt):-len(op_drop)]
                 f = BytesIO(hex_str_to_bytes(asset_script_hex))
                 transfer = CScriptTransfer()
                 transfer.deserialize(f)
                 transfer.amount = 0
                 tampered_transfer = bytes_to_hex_str(transfer.serialize())
-                tampered_script = transfer_script_hex[:transfer_script_hex.index(XBTSt)] + XBTSt + tampered_transfer + op_drop
+                tampered_script = transfer_script_hex[:transfer_script_hex.index(XBTXt)] + XBTXt + tampered_transfer + op_drop
                 tx.vout[n].scriptPubKey = hex_str_to_bytes(tampered_script)
         tx_bad_transfer = bytes_to_hex_str(tx.serialize())
         tx_bad_transfer_signed = n0.signrawtransaction(tx_bad_transfer)['hex']
@@ -1457,7 +1457,7 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         tx = CTransaction()
         f = BytesIO(hex_str_to_bytes(tx_transfer_hex))
         tx.deserialize(f)
-        XBTSt = '72766e74' #XBTSt
+        XBTXt = '72766e74' #XBTXt
         op_drop = '75'
 
         # create a new issue CTxOut
@@ -1469,16 +1469,16 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         issue_script.name = b'BYTE_ISSUE'
         issue_script.amount = 1
         issue_serialized = bytes_to_hex_str(issue_script.serialize())
-        XBTSq = '72766e71' #XBTSq
+        XBTXq = '72766e71' #XBTXq
 
         for n in range(0, len(tx.vout)):
             out = tx.vout[n]
-            if XBTSt in bytes_to_hex_str(out.scriptPubKey):
+            if XBTXt in bytes_to_hex_str(out.scriptPubKey):
                 transfer_out = out
                 transfer_script_hex = bytes_to_hex_str(transfer_out.scriptPubKey)
 
-                # Generate a script that has a valid destination address but switch it with XBTSq and the issue_serialized data
-                issue_out.scriptPubKey = hex_str_to_bytes(transfer_script_hex[:transfer_script_hex.index(XBTSt)] + XBTSq + issue_serialized + op_drop)
+                # Generate a script that has a valid destination address but switch it with XBTXq and the issue_serialized data
+                issue_out.scriptPubKey = hex_str_to_bytes(transfer_script_hex[:transfer_script_hex.index(XBTXt)] + XBTXq + issue_serialized + op_drop)
 
 
         tx.vout.insert(0, issue_out) # Insert the issue transaction at the begin on the vouts
@@ -1516,9 +1516,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         balance2 = float(n2.getwalletinfo()['balance'])
 
         ########################################
-        # XBTS for assets
+        # XBTX for assets
 
-        # n1 buys 400 ANDUIN from n2 for 4000 XBTS
+        # n1 buys 400 ANDUIN from n2 for 4000 XBTX
         price = 4000
         amount = 400
         fee = 0.0001
@@ -1567,9 +1567,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
 
 
         ########################################
-        # XBTS for owner
+        # XBTX for owner
 
-        # n2 buys JAINA! from n1 for 20000 XBTS
+        # n2 buys JAINA! from n1 for 20000 XBTX
         price = 20000
         amount = 1
         balance1 = newbalance1
@@ -1765,9 +1765,9 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         self.log.info("Testing fundrawtransaction with transfer outputs...")
         n0 = self.nodes[0]
         n2 = self.nodes[2]
-        asset_name = "DONT_FUND_XBTS"
+        asset_name = "DONT_FUND_XBTX"
         asset_amount = 100
-        XBTS_amount = 100
+        XBTX_amount = 100
 
         n2_address = n2.getnewaddress()
 
@@ -1790,7 +1790,7 @@ class RawAssetTransactionsTest(BitcoinSubsidiumTestFramework):
         self.sync_all()
 
         for n in range(0, 5):
-            n0.sendtoaddress(n2_address, XBTS_amount / 5)
+            n0.sendtoaddress(n2_address, XBTX_amount / 5)
         n0.generate(1)
         self.sync_all()
 

@@ -172,7 +172,7 @@ class DecodeScriptTest(BitcoinSubsidiumTestFramework):
         assert_equal('OP_RETURN 3011020701010101010101020601010101010101', rpc_result['vin'][0]['scriptSig']['asm'])
 
     def decodescript_assets(self):
-        """Test decoding XBTS_ASSETS scripts (regtest scripts)."""
+        """Test decoding XBTX_ASSETS scripts (regtest scripts)."""
 
         # make sure assets are activated
         self.nodes[0].generate(500)
@@ -180,7 +180,7 @@ class DecodeScriptTest(BitcoinSubsidiumTestFramework):
         # issue (main output)
         script = "76a91435a8d9b395f1594e2cf3e06e6ec357d1da89736888acc01a72766e710954455354415353455400e40b54020000000800000075"
         result = self.nodes[0].decodescript(script)
-        assert_equal('OP_DUP OP_HASH160 35a8d9b395f1594e2cf3e06e6ec357d1da897368 OP_EQUALVERIFY OP_CHECKSIG OP_XBTS_ASSET 72766e710954455354415353455400e40b540200000008000000 OP_DROP', result['asm'])
+        assert_equal('OP_DUP OP_HASH160 35a8d9b395f1594e2cf3e06e6ec357d1da897368 OP_EQUALVERIFY OP_CHECKSIG OP_XBTX_ASSET 72766e710954455354415353455400e40b540200000008000000 OP_DROP', result['asm'])
         assert_equal(1, result['reqSigs'])
         assert_equal('new_asset', result['type'])
         assert_equal(1, len(result['addresses']))

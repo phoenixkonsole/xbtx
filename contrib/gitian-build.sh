@@ -1,5 +1,5 @@
 # Copyright (c) 2016 The Bitcoin Core developers
-# Copyright (c) 2017 The Raven Core developers
+# Copyright (c) 2017 The BitcoinSubsidium Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,12 +18,12 @@ osx=true
 SIGNER=
 VERSION=
 commit=false
-url=https://github.com/RavenProject/Ravencoin
+url=https://github.com/BitcoinSubsidiumProject/BitcoinSubsidiumcoin
 proc=2
 mem=2000
 lxc=true
 osslTarUrl=http://downloads.sourceforge.net/project/osslsigncode/osslsigncode/osslsigncode-1.7.1.tar.gz
-osslPatchUrl=https://ravencoin.org/cfields/osslsigncode-Backports-to-1.7.1.patch
+osslPatchUrl=https://BitcoinSubsidiumcoin.org/cfields/osslsigncode-Backports-to-1.7.1.patch
 scriptName=$(basename -- "$0")
 signProg="gpg --detach-sign"
 commitFiles=true
@@ -32,7 +32,7 @@ commitFiles=true
 read -d '' usage <<- EOF
 Usage: $scriptName [-c|u|v|b|s|B|o|h|j|m|] signer version
 
-Run this script from the directory containing the raven, gitian-builder, gitian.sigs, and raven-detached-sigs.
+Run this script from the directory containing the BitcoinSubsidium, gitian-builder, gitian.sigs, and BitcoinSubsidium-detached-sigs.
 
 Arguments:
 signer          GPG signer to sign each build assert file
@@ -40,7 +40,7 @@ version		Version number, commit, or branch to build. If building a commit or bra
 
 Options:
 -c|--commit	Indicate that the version argument is for a commit or branch
--u|--url	Specify the URL of the repository. Default is https://github.com/RavenProject/Ravencoin
+-u|--url	Specify the URL of the repository. Default is https://github.com/BitcoinSubsidiumProject/BitcoinSubsidiumcoin
 -v|--verify 	Verify the Gitian build
 -b|--build	Do a Gitian build
 -s|--sign	Make signed binaries for Windows and Mac OSX
@@ -231,8 +231,8 @@ echo ${COMMIT}
 if [[ $setup = true ]]
 then
     sudo apt-get install ruby apache2 git apt-cacher-ng python-vm-builder qemu-kvm qemu-utils
-    git clone https://github.com/raven-core/gitian.sigs.git
-    git clone https://github.com/raven-core/raven-detached-sigs.git
+    git clone https://github.com/BitcoinSubsidium-core/gitian.sigs.git
+    git clone https://github.com/BitcoinSubsidium-core/BitcoinSubsidium-detached-sigs.git
     git clone https://github.com/devrandom/gitian-builder.git
     pushd ./gitian-builder
     if [[ -n "$USE_LXC" ]]
@@ -246,7 +246,7 @@ then
 fi
 
 # Set up build
-pushd ./raven
+pushd ./BitcoinSubsidium
 git fetch
 git checkout ${COMMIT}
 popd
@@ -255,7 +255,7 @@ popd
 if [[ $build = true ]]
 then
 	# Make output folder
-	mkdir -p ./raven-binaries/${VERSION}
+	mkdir -p ./BitcoinSubsidium-binaries/${VERSION}
 	
 	# Build Dependencies
 	echo ""
@@ -265,7 +265,7 @@ then
 	mkdir -p inputs
 	wget -N -P inputs $osslPatchUrl
 	wget -N -P inputs $osslTarUrl
-	make -C ../raven/depends download SOURCES_PATH=`pwd`/cache/common
+	make -C ../BitcoinSubsidium/depends download SOURCES_PATH=`pwd`/cache/common
 
 	# Linux
 	if [[ $linux = true ]]
@@ -273,9 +273,9 @@ then
             echo ""
 	    echo "Compiling ${VERSION} Linux"
 	    echo ""
-	    ./bin/gbuild -j ${proc} -m ${mem} --commit raven=${COMMIT} --url raven=${url} ../raven/contrib/gitian-descriptors/gitian-linux.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../raven/contrib/gitian-descriptors/gitian-linux.yml
-	    mv build/out/raven-*.tar.gz build/out/src/raven-*.tar.gz ../raven-binaries/${VERSION}
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit BitcoinSubsidium=${COMMIT} --url BitcoinSubsidium=${url} ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-linux.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-linux.yml
+	    mv build/out/BitcoinSubsidium-*.tar.gz build/out/src/BitcoinSubsidium-*.tar.gz ../BitcoinSubsidium-binaries/${VERSION}
 	fi
 	# Windows
 	if [[ $windows = true ]]
@@ -283,10 +283,10 @@ then
 	    echo ""
 	    echo "Compiling ${VERSION} Windows"
 	    echo ""
-	    ./bin/gbuild -j ${proc} -m ${mem} --commit raven=${COMMIT} --url raven=${url} ../raven/contrib/gitian-descriptors/gitian-win.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../raven/contrib/gitian-descriptors/gitian-win.yml
-	    mv build/out/raven-*-win-unsigned.tar.gz inputs/raven-win-unsigned.tar.gz
-	    mv build/out/raven-*.zip build/out/raven-*.exe ../raven-binaries/${VERSION}
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit BitcoinSubsidium=${COMMIT} --url BitcoinSubsidium=${url} ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-win.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-win.yml
+	    mv build/out/BitcoinSubsidium-*-win-unsigned.tar.gz inputs/BitcoinSubsidium-win-unsigned.tar.gz
+	    mv build/out/BitcoinSubsidium-*.zip build/out/BitcoinSubsidium-*.exe ../BitcoinSubsidium-binaries/${VERSION}
 	fi
 	# Mac OSX
 	if [[ $osx = true ]]
@@ -294,10 +294,10 @@ then
 	    echo ""
 	    echo "Compiling ${VERSION} Mac OSX"
 	    echo ""
-	    ./bin/gbuild -j ${proc} -m ${mem} --commit raven=${COMMIT} --url raven=${url} ../raven/contrib/gitian-descriptors/gitian-osx.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../raven/contrib/gitian-descriptors/gitian-osx.yml
-	    mv build/out/raven-*-osx-unsigned.tar.gz inputs/raven-osx-unsigned.tar.gz
-	    mv build/out/raven-*.tar.gz build/out/raven-*.dmg ../raven-binaries/${VERSION}
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit BitcoinSubsidium=${COMMIT} --url BitcoinSubsidium=${url} ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx.yml
+	    mv build/out/BitcoinSubsidium-*-osx-unsigned.tar.gz inputs/BitcoinSubsidium-osx-unsigned.tar.gz
+	    mv build/out/BitcoinSubsidium-*.tar.gz build/out/BitcoinSubsidium-*.dmg ../BitcoinSubsidium-binaries/${VERSION}
 	fi
 	popd
 
@@ -324,27 +324,27 @@ then
 	echo ""
 	echo "Verifying v${VERSION} Linux"
 	echo ""
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../raven/contrib/gitian-descriptors/gitian-linux.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-linux.yml
 	# Windows
 	echo ""
 	echo "Verifying v${VERSION} Windows"
 	echo ""
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../raven/contrib/gitian-descriptors/gitian-win.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-win.yml
 	# Mac OSX	
 	echo ""
 	echo "Verifying v${VERSION} Mac OSX"
 	echo ""	
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../raven/contrib/gitian-descriptors/gitian-osx.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx.yml
 	# Signed Windows
 	echo ""
 	echo "Verifying v${VERSION} Signed Windows"
 	echo ""
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../raven/contrib/gitian-descriptors/gitian-osx-signer.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx-signer.yml
 	# Signed Mac OSX
 	echo ""
 	echo "Verifying v${VERSION} Signed Mac OSX"
 	echo ""
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../raven/contrib/gitian-descriptors/gitian-osx-signer.yml	
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx-signer.yml	
 	popd
 fi
 
@@ -359,10 +359,10 @@ then
 	    echo ""
 	    echo "Signing ${VERSION} Windows"
 	    echo ""
-	    ./bin/gbuild -i --commit signature=${COMMIT} ../raven/contrib/gitian-descriptors/gitian-win-signer.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../raven/contrib/gitian-descriptors/gitian-win-signer.yml
-	    mv build/out/raven-*win64-setup.exe ../raven-binaries/${VERSION}
-	    mv build/out/raven-*win32-setup.exe ../raven-binaries/${VERSION}
+	    ./bin/gbuild -i --commit signature=${COMMIT} ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-win-signer.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-win-signer.yml
+	    mv build/out/BitcoinSubsidium-*win64-setup.exe ../BitcoinSubsidium-binaries/${VERSION}
+	    mv build/out/BitcoinSubsidium-*win32-setup.exe ../BitcoinSubsidium-binaries/${VERSION}
 	fi
 	# Sign Mac OSX
 	if [[ $osx = true ]]
@@ -370,9 +370,9 @@ then
 	    echo ""
 	    echo "Signing ${VERSION} Mac OSX"
 	    echo ""
-	    ./bin/gbuild -i --commit signature=${COMMIT} ../raven/contrib/gitian-descriptors/gitian-osx-signer.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../raven/contrib/gitian-descriptors/gitian-osx-signer.yml
-	    mv build/out/raven-osx-signed.dmg ../raven-binaries/${VERSION}/raven-${VERSION}-osx.dmg
+	    ./bin/gbuild -i --commit signature=${COMMIT} ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx-signer.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../BitcoinSubsidium/contrib/gitian-descriptors/gitian-osx-signer.yml
+	    mv build/out/BitcoinSubsidium-osx-signed.dmg ../BitcoinSubsidium-binaries/${VERSION}/BitcoinSubsidium-${VERSION}-osx.dmg
 	fi
 	popd
 

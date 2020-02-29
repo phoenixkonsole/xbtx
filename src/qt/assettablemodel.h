@@ -38,7 +38,7 @@ public:
     enum RoleIndex {
         /** Net amount of transaction */
             AmountRole = 100,
-        /** XBTS or name of an asset */
+        /** XBTX or name of an asset */
             AssetNameRole = 101,
         /** Formatted amount, without brackets when unconfirmed */
             FormattedAmountRole = 102,

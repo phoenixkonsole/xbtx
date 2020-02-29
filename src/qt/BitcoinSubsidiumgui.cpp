@@ -198,14 +198,14 @@ BitcoinSubsidiumGUI::BitcoinSubsidiumGUI(const PlatformStyle *_platformStyle, co
         setCentralWidget(rpcConsole);
     }
 
-    /** XBTS START */
+    /** XBTX START */
     labelCurrentMarket = new QLabel();
     labelCurrentPrice = new QLabel();
     headerWidget = new QWidget();
     pricingTimer = new QTimer();
     networkManager = new QNetworkAccessManager();
     request = new QNetworkRequest();
-    /** XBTS END */
+    /** XBTX END */
 
     // Accept D&D of URIs
     setAcceptDrops(true);
@@ -390,9 +390,9 @@ void BitcoinSubsidiumGUI::createActions()
     historyAction->setFont(font);
     tabGroup->addAction(historyAction);
 
-    /** XBTS START */
+    /** XBTX START */
     transferAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_transfer_selected", ":/icons/asset_transfer"), tr("&Transfer Assets"), this);
-    transferAssetAction->setStatusTip(tr("Transfer assets to XBTS addresses"));
+    transferAssetAction->setStatusTip(tr("Transfer assets to XBTX addresses"));
     transferAssetAction->setToolTip(transferAssetAction->statusTip());
     transferAssetAction->setCheckable(true);
     transferAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
@@ -431,7 +431,7 @@ void BitcoinSubsidiumGUI::createActions()
     votingAction->setFont(font);
     tabGroup->addAction(votingAction);
 
-    /** XBTS END */
+    /** XBTX END */
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -582,7 +582,7 @@ void BitcoinSubsidiumGUI::createToolBars()
 {
     if(walletFrame)
     {
-        /** XBTS START */
+        /** XBTX START */
         // Create the orange background and the vertical tool bar
         QWidget* toolbarWidget = new QWidget();
 
@@ -594,7 +594,7 @@ void BitcoinSubsidiumGUI::createToolBars()
         label->setPixmap(QPixmap::fromImage(QImage(":/icons/BitcoinSubsidiumcointext")));
         label->setContentsMargins(0,0,0,50);
         label->setStyleSheet(".QLabel{background-color: transparent;}");
-        /** XBTS END */
+        /** XBTX END */
 
         QToolBar *toolbar = new QToolBar();
         toolbar->setStyle(style());
@@ -622,7 +622,7 @@ void BitcoinSubsidiumGUI::createToolBars()
         stringToUse = normalString;
 #endif
 
-        /** XBTS START */
+        /** XBTX START */
         QString tbStyleSheet = ".QToolBar {background-color : transparent; border-color: transparent; }  "
                                ".QToolButton {background-color: transparent; border-color: transparent; width: 249px; color: %1; border: none;} "
                                ".QToolButton:checked {background: none; background-color: none; selection-background-color: none; color: %2; border: none; font: %4} "
@@ -693,18 +693,18 @@ void BitcoinSubsidiumGUI::createToolBars()
         labelCurrentPrice->setStyleSheet(currentPriceStyleSheet.arg(COLOR_LABELS.name()));
         labelCurrentPrice->setFont(currentMarketFont);
 
-        QLabel* labelBtcXBTS = new QLabel();
-        labelBtcXBTS->setText("BTC / XBTS");
-        labelBtcXBTS->setContentsMargins(15,0,0,0);
-        labelBtcXBTS->setFixedHeight(75);
-        labelBtcXBTS->setAlignment(Qt::AlignVCenter);
-        labelBtcXBTS->setStyleSheet(STRING_LABEL_COLOR);
-        labelBtcXBTS->setFont(currentMarketFont);
+        QLabel* labelBtcXBTX = new QLabel();
+        labelBtcXBTX->setText("BTC / XBTX");
+        labelBtcXBTX->setContentsMargins(15,0,0,0);
+        labelBtcXBTX->setFixedHeight(75);
+        labelBtcXBTX->setAlignment(Qt::AlignVCenter);
+        labelBtcXBTX->setStyleSheet(STRING_LABEL_COLOR);
+        labelBtcXBTX->setFont(currentMarketFont);
 
         priceLayout->setGeometry(headerWidget->rect());
         priceLayout->addWidget(labelCurrentMarket, 0, Qt::AlignVCenter | Qt::AlignLeft);
         priceLayout->addWidget(labelCurrentPrice, 0,  Qt::AlignVCenter | Qt::AlignLeft);
-        priceLayout->addWidget(labelBtcXBTS, 0 , Qt::AlignVCenter | Qt::AlignLeft);
+        priceLayout->addWidget(labelBtcXBTX, 0 , Qt::AlignVCenter | Qt::AlignLeft);
         priceLayout->addStretch();
 
         // Create the layout for widget to the right of the tool bar
@@ -773,7 +773,7 @@ void BitcoinSubsidiumGUI::createToolBars()
         connect(pricingTimer, SIGNAL(timeout()), this, SLOT(getPriceInfo()));
         pricingTimer->start(10000);
         getPriceInfo();
-        /** XBTS END */
+        /** XBTX END */
     }
 }
 
@@ -881,13 +881,13 @@ void BitcoinSubsidiumGUI::setWalletActionsEnabled(bool enabled)
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
 
-    /** XBTS START */
+    /** XBTX START */
     transferAssetAction->setEnabled(false);
     createAssetAction->setEnabled(false);
     manageAssetAction->setEnabled(false);
     messagingAction->setEnabled(false);
     votingAction->setEnabled(false);
-    /** XBTS END */
+    /** XBTX END */
 }
 
 void BitcoinSubsidiumGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -1032,7 +1032,7 @@ void BitcoinSubsidiumGUI::gotoVerifyMessageTab(QString addr)
     if (walletFrame) walletFrame->gotoVerifyMessageTab(addr);
 }
 
-/** XBTS START */
+/** XBTX START */
 void BitcoinSubsidiumGUI::gotoAssetsPage()
 {
     transferAssetAction->setChecked(true);
@@ -1050,7 +1050,7 @@ void BitcoinSubsidiumGUI::gotoManageAssetsPage()
     manageAssetAction->setChecked(true);
     if (walletFrame) walletFrame->gotoManageAssetsPage();
 };
-/** XBTS END */
+/** XBTX END */
 #endif // ENABLE_WALLET
 
 void BitcoinSubsidiumGUI::updateNetworkState()
@@ -1326,7 +1326,7 @@ void BitcoinSubsidiumGUI::incomingTransaction(const QString& date, int unit, con
 {
     // On new transaction, make an info balloon
     QString msg = tr("Date: %1\n").arg(date);
-    if (assetName == "XBTS")
+    if (assetName == "XBTX")
         msg += tr("Amount: %1\n").arg(BitcoinSubsidiumUnits::formatWithUnit(unit, amount, true));
     else
         msg += tr("Amount: %1\n").arg(BitcoinSubsidiumUnits::formatWithCustomName(assetName, amount, MAX_ASSET_UNITS, true));
@@ -1346,7 +1346,7 @@ void BitcoinSubsidiumGUI::checkAssets()
     // Check that status of RIP2 and activate the assets icon if it is active
     if(AreAssetsDeployed()) {
         transferAssetAction->setDisabled(false);
-        transferAssetAction->setToolTip(tr("Transfer assets to XBTS addresses"));
+        transferAssetAction->setToolTip(tr("Transfer assets to XBTX addresses"));
         createAssetAction->setDisabled(false);
         createAssetAction->setToolTip(tr("Create new main/sub/unique assets"));
         manageAssetAction->setDisabled(false);

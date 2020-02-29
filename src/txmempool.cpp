@@ -430,24 +430,24 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
         const CTxOut &prevout = view.AccessCoin(input.prevout).out;
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
-            CMempoolAddressDeltaKey key(2, uint160(hashBytes), XBTS, txhash, j, 1);
+            CMempoolAddressDeltaKey key(2, uint160(hashBytes), XBTX, txhash, j, 1);
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
             mapAddress.insert(std::make_pair(key, delta));
             inserted.push_back(key);
         } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
-            CMempoolAddressDeltaKey key(1, uint160(hashBytes), XBTS, txhash, j, 1);
+            CMempoolAddressDeltaKey key(1, uint160(hashBytes), XBTX, txhash, j, 1);
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
             mapAddress.insert(std::make_pair(key, delta));
             inserted.push_back(key);
         } else if (prevout.scriptPubKey.IsPayToPublicKey()) {
             uint160 hashBytes(Hash160(prevout.scriptPubKey.begin()+1, prevout.scriptPubKey.end()-1));
-            CMempoolAddressDeltaKey key(1, hashBytes, XBTS, txhash, j, 1);
+            CMempoolAddressDeltaKey key(1, hashBytes, XBTX, txhash, j, 1);
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
             mapAddress.insert(std::make_pair(key, delta));
             inserted.push_back(key);
         } else {
-            /** XBTS START */
+            /** XBTX START */
             if (AreAssetsDeployed()) {
                 uint160 hashBytes;
                 std::string assetName;
@@ -459,7 +459,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
                     inserted.push_back(key);
                 }
             }
-            /** XBTS END */
+            /** XBTX END */
         }
     }
 
@@ -467,23 +467,23 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
         const CTxOut &out = tx.vout[k];
         if (out.scriptPubKey.IsPayToScriptHash()) {
             std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
-            CMempoolAddressDeltaKey key(2, uint160(hashBytes), XBTS, txhash, k, 0);
+            CMempoolAddressDeltaKey key(2, uint160(hashBytes), XBTX, txhash, k, 0);
             mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entry.GetTime(), out.nValue)));
             inserted.push_back(key);
         } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
             std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
             std::pair<addressDeltaMap::iterator,bool> ret;
-            CMempoolAddressDeltaKey key(1, uint160(hashBytes), XBTS, txhash, k, 0);
+            CMempoolAddressDeltaKey key(1, uint160(hashBytes), XBTX, txhash, k, 0);
             mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entry.GetTime(), out.nValue)));
             inserted.push_back(key);
         } else if (out.scriptPubKey.IsPayToPublicKey()) {
             uint160 hashBytes(Hash160(out.scriptPubKey.begin()+1, out.scriptPubKey.end()-1));
             std::pair<addressDeltaMap::iterator,bool> ret;
-            CMempoolAddressDeltaKey key(1, hashBytes, XBTS, txhash, k, 0);
+            CMempoolAddressDeltaKey key(1, hashBytes, XBTX, txhash, k, 0);
             mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entry.GetTime(), out.nValue)));
             inserted.push_back(key);
         } else {
-            /** XBTS START */
+            /** XBTX START */
             if (AreAssetsDeployed()) {
                 uint160 hashBytes;
                 std::string assetName;
@@ -495,7 +495,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
                     inserted.push_back(key);
                 }
             }
-            /** XBTS END */
+            /** XBTX END */
         }
     }
 
@@ -642,7 +642,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     removeAddressIndex(hash);
     removeSpentIndex(hash);
 
-    /** XBTS START */
+    /** XBTX START */
     // If the transaction being removed from the mempool is locking other reissues. Free them
     if (mapReissuedTx.count(hash)) {
         if (mapReissuedAssets.count(mapReissuedTx.at(hash))) {
@@ -656,7 +656,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         mapAssetToHash.erase(mapHashToAsset.at(hash));
         mapHashToAsset.erase(hash);
     }
-    /** XBTS END */
+    /** XBTX END */
 }
 
 // Calculates descendants of entry that are not already in setDescendants, and adds to
@@ -800,7 +800,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
             entries.push_back(&*i);
     }
 
-    /** XBTS START */
+    /** XBTX START */
     // Get the newly added assets, and make sure they are in the entries
     std::vector<CTransaction> trans;
     for (auto it : setNewAssets) {
@@ -812,7 +812,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
             }
         }
     }
-    /** XBTS END */
+    /** XBTX END */
 
     // Before the txs in the new block have been removed from the mempool, update policy estimates
     if (minerPolicyEstimator) {minerPolicyEstimator->processBlock(nBlockHeight, entries);}
@@ -828,7 +828,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         ClearPrioritisation(tx->GetHash());
     }
 
-    /** XBTS START */
+    /** XBTX START */
     // Remove newly added asset issue transactions from the mempool if they haven't been removed already
     for (auto tx : trans)
     {
@@ -841,7 +841,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         removeConflicts(tx);
         ClearPrioritisation(tx.GetHash());
     }
-    /** XBTS END */
+    /** XBTX END */
 
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
@@ -872,14 +872,14 @@ static void CheckInputsAndUpdateCoins(const CTransaction& tx, CCoinsViewCache& m
     CValidationState state;
     CAmount txfee = 0;
     bool fCheckResult = tx.IsCoinBase() || Consensus::CheckTxInputs(tx, state, mempoolDuplicate, spendheight, txfee);
-    /** XBTS START */
+    /** XBTX START */
     if (AreAssetsDeployed()) {
         std::vector<std::pair<std::string, uint256>> vReissueAssets;
         bool fCheckAssets = Consensus::CheckTxAssets(tx, state, mempoolDuplicate, vReissueAssets);
         assert(fCheckResult && fCheckAssets);
     } else
         assert(fCheckResult);
-    /** XBTS END */
+    /** XBTX END */
     UpdateCoins(tx, mempoolDuplicate, 1000000);
 }
 

@@ -65,11 +65,11 @@ enum txnouttype
     TX_NULL_DATA = 5, //!< unspendable OP_RETURN script that carries data
     TX_WITNESS_V0_SCRIPTHASH = 6,
     TX_WITNESS_V0_KEYHASH = 7,
-    /** XBTS START */
+    /** XBTX START */
     TX_NEW_ASSET = 8,
     TX_REISSUE_ASSET = 9,
     TX_TRANSFER_ASSET = 10
-    /** XBTS END */
+    /** XBTX END */
 };
 
 class CNoDestination {

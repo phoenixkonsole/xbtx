@@ -159,11 +159,11 @@ public:
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
          * a large 32-bit integer with any alignment.
          */
-        pchMessageStart[0] = 0x52; // R
-        pchMessageStart[1] = 0x41; // A
-        pchMessageStart[2] = 0x56; // V
-        pchMessageStart[3] = 0x4e; // N
-        nDefaultPort = 8767;
+        pchMessageStart[0] = 0x58; // X
+        pchMessageStart[1] = 0x42; // B
+        pchMessageStart[2] = 0x54; // T
+        pchMessageStart[3] = 0x43; // S
+        nDefaultPort = 8778;
         nPruneAfterHeight = 100000;
 
         genesis = CreateGenesisBlock(1559065059, 10240315, 0x1e00ffff, 2, 5000 * COIN);
@@ -173,7 +173,7 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("000000a1344be5a436d588e91f65251146038a17fe9d1f9903cac938bdade931"));
         assert(genesis.hashMerkleRoot == uint256S("c308feaa5e1bce0f9b483e14fb20a47dc1d849fac1b660fdaffc461b34df10a5"));
 
-        vSeeds.emplace_back("seed-BitcoinSubsidium.bitactivate.com", false);
+        vSeeds.emplace_back("176.9.64.121", false);
         vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.com", false);
         vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.org", false);
 
@@ -205,7 +205,7 @@ public:
             0.1         // * estimated number of transactions per second after that timestamp
         };
 
-        /** XBTS Start **/
+        /** XBTX Start **/
         // Burn Amounts
         nIssueAssetBurnAmount = 500 * COIN;
         nReissueAssetBurnAmount = 100 * COIN;
@@ -227,7 +227,7 @@ public:
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
-        /** XBTS End **/
+        /** XBTX End **/
     }
 };
 
@@ -377,7 +377,7 @@ public:
             0.02        // * estimated number of transactions per second after that timestamp
         };
 
-        /** XBTS Start **/
+        /** XBTX Start **/
         // Burn Amounts
         nIssueAssetBurnAmount = 500 * COIN;
         nReissueAssetBurnAmount = 100 * COIN;
@@ -399,7 +399,7 @@ public:
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
-        /** XBTS End **/
+        /** XBTX End **/
 
     }
 };
@@ -536,7 +536,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
 
-        /** XBTS Start **/
+        /** XBTX Start **/
         // Burn Amounts
         nIssueAssetBurnAmount = 500 * COIN;
         nReissueAssetBurnAmount = 100 * COIN;
@@ -558,7 +558,7 @@ public:
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
-        /** XBTS End **/
+        /** XBTX End **/
     }
 };
 

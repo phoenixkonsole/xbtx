@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.raven;
+package org.BitcoinSubsidium;
 
 public class NativeSecp256k1Util{
 

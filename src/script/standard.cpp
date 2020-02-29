@@ -34,11 +34,11 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
 
-    /** XBTS START */
+    /** XBTX START */
     case TX_NEW_ASSET: return ASSET_NEW_STRING;
     case TX_TRANSFER_ASSET: return ASSET_TRANSFER_STRING;
     case TX_REISSUE_ASSET: return ASSET_REISSUE_STRING;
-    /** XBTS END */
+    /** XBTX END */
     }
     return nullptr;
 }
@@ -70,7 +70,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
-    /** XBTS START */
+    /** XBTX START */
     int nType = 0;
     bool fIsOwner = false;
     if (scriptPubKey.IsAssetScript(nType, fIsOwner)) {
@@ -79,7 +79,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
-    /** XBTS END */
+    /** XBTX END */
 
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
@@ -218,12 +218,12 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     {
         addressRet = CScriptID(uint160(vSolutions[0]));
         return true;
-    /** XBTS START */
+    /** XBTX START */
     } else if (whichType == TX_NEW_ASSET || whichType == TX_REISSUE_ASSET || whichType == TX_TRANSFER_ASSET) {
         addressRet = CKeyID(uint160(vSolutions[0]));
         return true;
     }
-     /** XBTS END */
+     /** XBTX END */
     // Multisig txns have more than one address...
     return false;
 }

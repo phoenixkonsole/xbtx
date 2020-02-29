@@ -108,10 +108,10 @@ private Q_SLOTS:
 
     void customFeeFeatureChanged(bool);
 
-    /** XBTS START */
+    /** XBTX START */
     void assetControlUpdateSendCoinsDialog();
     void focusAsset(const QModelIndex& index);
-    /** XBTS END */
+    /** XBTX END */
 
     Q_SIGNALS:
             // Fired when a message should be reported to the user

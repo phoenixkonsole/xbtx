@@ -16,12 +16,12 @@
 #include <unordered_map>
 #include <list>
 
-#define XBTS_R 114
-#define XBTS_V 118
-#define XBTS_N 110
-#define XBTS_Q 113
-#define XBTS_T 116
-#define XBTS_O 111
+#define XBTX_R 114
+#define XBTX_V 118
+#define XBTX_N 110
+#define XBTX_Q 113
+#define XBTX_T 116
+#define XBTX_O 111
 
 #define DEFAULT_UNITS 0
 #define DEFAULT_REISSUABLE 1

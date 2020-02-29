@@ -100,7 +100,7 @@ BOOST_FIXTURE_TEST_SUITE(amount_tests, BasicTestingSetup)
         BOOST_CHECK(a <= a);
         BOOST_CHECK(b >= a);
         BOOST_CHECK(b >= b);
-        // a should be 0.00000002 XBTS/kB now
+        // a should be 0.00000002 XBTX/kB now
         a += a;
         BOOST_CHECK(a == b);
     }
@@ -111,7 +111,7 @@ BOOST_FIXTURE_TEST_SUITE(amount_tests, BasicTestingSetup)
 
         CFeeRate feeRate;
         feeRate = CFeeRate(1);
-        BOOST_CHECK_EQUAL(feeRate.ToString(), "0.00000001 XBTS/kB");
+        BOOST_CHECK_EQUAL(feeRate.ToString(), "0.00000001 XBTX/kB");
     }
 
 BOOST_AUTO_TEST_SUITE_END()

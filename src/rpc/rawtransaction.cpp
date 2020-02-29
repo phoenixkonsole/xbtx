@@ -347,13 +347,13 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
         throw std::runtime_error(
             "createrawtransaction [{\"txid\":\"id\",\"vout\":n},...] {\"address\":(amount or object),\"data\":\"hex\",...} ( locktime ) ( replaceable )\n"
             "\nCreate a transaction spending the given inputs and creating new outputs.\n"
-            "Outputs are addresses (paired with a XBTS amount, data or object specifying an asset operation) or data.\n"
+            "Outputs are addresses (paired with a XBTX amount, data or object specifying an asset operation) or data.\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction's inputs are not signed, and\n"
             "it is not stored in the wallet or transmitted to the network.\n"
 
             "\nPaying for Asset Operations:\n"
-            "  Some operations require an amount of XBTS to be sent to a burn address:\n"
+            "  Some operations require an amount of XBTX to be sent to a burn address:\n"
             "    transfer:       0\n"
             "    issue:        500 to Issue Burn Address\n"
             "    issue_unique    5 to Issue Unique Burn Address\n"
@@ -384,7 +384,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "2. \"outputs\"                               (object, required) a json object with outputs\n"
             "     {\n"
             "       \"address\":                          (string, required) The destination BitcoinSubsidium address.  Each output must have a different address.\n"
-            "         x.xxx                             (numeric or string, required) The XBTS amount\n"
+            "         x.xxx                             (numeric or string, required) The XBTX amount\n"
             "           or\n"
             "         {                                 (object) A json object of assets to send\n"
             "           \"transfer\":\n"
@@ -538,7 +538,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
                 CTxOut out(nAmount, scriptPubKey);
                 rawTx.vout.push_back(out);
             }
-            /** XBTS COIN START **/
+            /** XBTX COIN START **/
             else if (sendTo[name_].type() == UniValue::VOBJ) {
                 auto asset_ = sendTo[name_].get_obj();
                 auto assetKey_ = asset_.getKeys()[0];
@@ -786,7 +786,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             } else {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, Output must be of the type object"));
             }
-            /** XBTS COIN STOP **/
+            /** XBTX COIN STOP **/
         }
     }
 
@@ -920,7 +920,7 @@ UniValue decodescript(const JSONRPCRequest& request)
         r.push_back(Pair("p2sh", EncodeDestination(CScriptID(script))));
     }
 
-    /** XBTS START */
+    /** XBTX START */
     if (type.isStr() && type.get_str() == ASSET_TRANSFER_STRING) {
         if (!AreAssetsDeployed())
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Assets are not active");
@@ -988,7 +988,7 @@ UniValue decodescript(const JSONRPCRequest& request)
     } else {
 
     }
-    /** XBTS END */
+    /** XBTX END */
 
     return r;
 }

@@ -104,7 +104,7 @@
 
 /* Define to 1 if you have the declaration of `EVP_MD_CTX_new', and to 0 if
    you don't. */
-#define HAVE_DECL_EVP_MD_CTX_NEW 0
+#define HAVE_DECL_EVP_MD_CTX_NEW 1
 
 /* Define to 1 if you have the declaration of `htobe16', and to 0 if you
    don't. */

@@ -326,14 +326,14 @@ public:
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 
-    /** XBTS START */
+    /** XBTX START */
     bool IsNewAsset() const;
     bool VerifyNewAsset(std::string& strError) const;
     bool IsNewUniqueAsset() const;
     bool VerifyNewUniqueAsset(std::string& strError) const;
     bool IsReissueAsset() const;
     bool VerifyReissueAsset(std::string& strError) const;
-    /** XBTS END */
+    /** XBTX END */
 
     /**
      * Get the total transaction size in bytes, including witness data.

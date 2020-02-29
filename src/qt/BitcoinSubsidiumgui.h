@@ -115,7 +115,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
 
-    /** RVN START */
+    /** XBTX START */
     QAction *transferAssetAction;
     QAction *createAssetAction;
     QAction *manageAssetAction;
@@ -127,7 +127,7 @@ private:
     QTimer *pricingTimer;
     QNetworkAccessManager* networkManager;
     QNetworkRequest* request;
-    /** RVN END */
+    /** XBTX END */
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -232,12 +232,12 @@ private Q_SLOTS:
     /** Show open dialog */
     void openClicked();
 
-    /** RVN START */
+    /** XBTX START */
     /** Switch to assets page */
     void gotoAssetsPage();
     void gotoCreateAssetsPage();
     void gotoManageAssetsPage();
-    /** RVN END */
+    /** XBTX END */
 
 #endif // ENABLE_WALLET
     /** Show configuration dialog */

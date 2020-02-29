@@ -62,9 +62,9 @@ public:
      */
     enum Unit
     {
-        XBTS,
-        mXBTS,
-        uXBTS
+        XBTX,
+        mXBTX,
+        uXBTX
     };
 
     enum SeparatorStyle

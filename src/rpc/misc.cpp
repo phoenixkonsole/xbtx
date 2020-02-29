@@ -728,7 +728,7 @@ UniValue getaddressmempool(const JSONRPCRequest& request)
             "[\n"
             "  {\n"
             "    \"address\"  (string) The base58check encoded address\n"
-            "    \"assetName\"  (string) The name of the associated asset (XBTS for BitcoinSubsidiumcoin)\n"
+            "    \"assetName\"  (string) The name of the associated asset (XBTX for BitcoinSubsidiumcoin)\n"
             "    \"txid\"  (string) The related txid\n"
             "    \"index\"  (number) The related input or output index\n"
             "    \"satoshis\"  (number) The difference of satoshis\n"
@@ -766,7 +766,7 @@ UniValue getaddressmempool(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     } else {
-        if (!mempool.getAddressIndex(addresses, XBTS, indexes)) {
+        if (!mempool.getAddressIndex(addresses, XBTX, indexes)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     }
@@ -814,13 +814,13 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
             "      ,...\n"
             "    ],\n"
             "  \"chainInfo\",  (boolean, optional, default false) Include chain info with results\n"
-            "  \"assetName\"   (string, optional) Get UTXOs for a particular asset instead of XBTS ('*' for all assets).\n"
+            "  \"assetName\"   (string, optional) Get UTXOs for a particular asset instead of XBTX ('*' for all assets).\n"
             "}\n"
             "\nResult\n"
             "[\n"
             "  {\n"
             "    \"address\"  (string) The address base58check encoded\n"
-            "    \"assetName\" (string) The asset associated with the UTXOs (XBTS for BitcoinSubsidiumcoin)\n"
+            "    \"assetName\" (string) The asset associated with the UTXOs (XBTX for BitcoinSubsidiumcoin)\n"
             "    \"txid\"  (string) The output txid\n"
             "    \"height\"  (number) The block height\n"
             "    \"outputIndex\"  (number) The output index\n"
@@ -836,7 +836,7 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
             );
 
     bool includeChainInfo = false;
-    std::string assetName = XBTS;
+    std::string assetName = XBTX;
     if (request.params[0].isObject()) {
         UniValue chainInfo = find_value(request.params[0].get_obj(), "chainInfo");
         if (chainInfo.isBool()) {
@@ -881,8 +881,8 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
         }
 
-        std::string assetNameOut = "XBTS";
-        if (assetName != "XBTS") {
+        std::string assetNameOut = "XBTX";
+        if (assetName != "XBTX") {
             CAmount _amount;
             if (!GetAssetInfoFromScript(it->second.script, assetNameOut, _amount)) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't decode asset script");
@@ -928,12 +928,12 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
             "  \"start\" (number) The start block height\n"
             "  \"end\" (number) The end block height\n"
             "  \"chainInfo\" (boolean) Include chain info in results, only applies if start and end specified\n"
-            "  \"assetName\"   (string, optional) Get deltas for a particular asset instead of XBTS.\n"
+            "  \"assetName\"   (string, optional) Get deltas for a particular asset instead of XBTX.\n"
             "}\n"
             "\nResult:\n"
             "[\n"
             "  {\n"
-            "    \"assetName\"  (string) The asset associated with the deltas (XBTS for BitcoinSubsidiumcoin)\n"
+            "    \"assetName\"  (string) The asset associated with the deltas (XBTX for BitcoinSubsidiumcoin)\n"
             "    \"satoshis\"  (number) The difference of satoshis\n"
             "    \"txid\"  (string) The related txid\n"
             "    \"index\"  (number) The related input or output index\n"
@@ -958,7 +958,7 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
         includeChainInfo = chainInfo.get_bool();
     }
 
-    std::string assetName = XBTS;
+    std::string assetName = XBTX;
     UniValue assetNameParam = find_value(request.params[0].get_obj(), "assetName");
     if (assetNameParam.isStr()) {
         if (!AreAssetsDeployed())
@@ -1074,7 +1074,7 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
             "OR\n"
             "[\n"
             "  {\n"
-            "    \"assetName\"  (string) The asset associated with the balance (XBTS for BitcoinSubsidiumcoin)\n"
+            "    \"assetName\"  (string) The asset associated with the balance (XBTX for BitcoinSubsidiumcoin)\n"
             "    \"balance\"  (string) The current balance in satoshis\n"
             "    \"received\"  (string) The total number of satoshis received (including change)\n"
             "  },...\n"
@@ -1141,7 +1141,7 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
         std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
         for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-            if (!GetAddressIndex((*it).first, (*it).second, XBTS, addressIndex)) {
+            if (!GetAddressIndex((*it).first, (*it).second, XBTX, addressIndex)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
         }
@@ -1236,11 +1236,11 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
             }
         } else {
             if (start > 0 && end > 0) {
-                if (!GetAddressIndex((*it).first, (*it).second, XBTS, addressIndex, start, end)) {
+                if (!GetAddressIndex((*it).first, (*it).second, XBTX, addressIndex, start, end)) {
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
                 }
             } else {
-                if (!GetAddressIndex((*it).first, (*it).second, XBTS, addressIndex)) {
+                if (!GetAddressIndex((*it).first, (*it).second, XBTX, addressIndex)) {
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
                 }
             }

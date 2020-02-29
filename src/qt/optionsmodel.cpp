@@ -72,7 +72,7 @@ void OptionsModel::Init(bool resetSettings)
 
     // Display
     if (!settings.contains("nDisplayUnit"))
-        settings.setValue("nDisplayUnit", BitcoinSubsidiumUnits::XBTS);
+        settings.setValue("nDisplayUnit", BitcoinSubsidiumUnits::XBTX);
     nDisplayUnit = settings.value("nDisplayUnit").toInt();
 
     if (!settings.contains("strThirdPartyTxUrls"))

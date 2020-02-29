@@ -93,13 +93,13 @@ public Q_SLOTS:
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
 
-    /** RVN START */
+    /** XBTX START */
 
     /** Switch to assets page */
     void gotoAssetsPage();
     void gotoCreateAssetsPage();
     void gotoManageAssetsPage();
-    /** RVN END */
+    /** XBTX END */
 };
 
 #endif // BitcoinSubsidium_QT_WALLETFRAME_H

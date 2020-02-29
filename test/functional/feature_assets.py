@@ -19,7 +19,7 @@ class AssetTest(BitcoinSubsidiumTestFramework):
         self.extra_args = [['-assetindex'], ['-assetindex'], ['-assetindex']]
 
     def activate_assets(self):
-        self.log.info("Generating XBTS for node[0] and activating assets...")
+        self.log.info("Generating XBTX for node[0] and activating assets...")
         n0, n1, n2 = self.nodes[0], self.nodes[1], self.nodes[2]
 
         n0.generate(1)

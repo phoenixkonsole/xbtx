@@ -18,9 +18,9 @@ BitcoinSubsidiumUnits::BitcoinSubsidiumUnits(QObject *parent):
 QList<BitcoinSubsidiumUnits::Unit> BitcoinSubsidiumUnits::availableUnits()
 {
     QList<BitcoinSubsidiumUnits::Unit> unitlist;
-    unitlist.append(XBTS);
-    unitlist.append(mXBTS);
-    unitlist.append(uXBTS);
+    unitlist.append(XBTX);
+    unitlist.append(mXBTX);
+    unitlist.append(uXBTX);
     return unitlist;
 }
 
@@ -28,9 +28,9 @@ bool BitcoinSubsidiumUnits::valid(int unit)
 {
     switch(unit)
     {
-    case XBTS:
-    case mXBTS:
-    case uXBTS:
+    case XBTX:
+    case mXBTX:
+    case uXBTX:
         return true;
     default:
         return false;
@@ -41,9 +41,9 @@ QString BitcoinSubsidiumUnits::name(int unit)
 {
     switch(unit)
     {
-    case XBTS: return QString("XBTS");
-    case mXBTS: return QString("mXBTS");
-    case uXBTS: return QString::fromUtf8("μXBTS");
+    case XBTX: return QString("XBTX");
+    case mXBTX: return QString("mXBTX");
+    case uXBTX: return QString::fromUtf8("μXBTX");
     default: return QString("???");
     }
 }
@@ -52,9 +52,9 @@ QString BitcoinSubsidiumUnits::description(int unit)
 {
     switch(unit)
     {
-    case XBTS: return QString("BitcoinSubsidiums");
-    case mXBTS: return QString("Milli-BitcoinSubsidiums (1 / 1" THIN_SP_UTF8 "000)");
-    case uXBTS: return QString("Micro-BitcoinSubsidiums (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case XBTX: return QString("BitcoinSubsidiums");
+    case mXBTX: return QString("Milli-BitcoinSubsidiums (1 / 1" THIN_SP_UTF8 "000)");
+    case uXBTX: return QString("Micro-BitcoinSubsidiums (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     default: return QString("???");
     }
 }
@@ -63,9 +63,9 @@ qint64 BitcoinSubsidiumUnits::factor(int unit)
 {
     switch(unit)
     {
-    case XBTS:  return 100000000;
-    case mXBTS: return 100000;
-    case uXBTS: return 100;
+    case XBTX:  return 100000000;
+    case mXBTX: return 100000;
+    case uXBTX: return 100;
     default:   return 100000000;
     }
 }
@@ -91,9 +91,9 @@ int BitcoinSubsidiumUnits::decimals(int unit)
 {
     switch(unit)
     {
-    case XBTS: return 8;
-    case mXBTS: return 5;
-    case uXBTS: return 2;
+    case XBTX: return 8;
+    case mXBTX: return 5;
+    case uXBTX: return 2;
     default: return 0;
     }
 }
@@ -150,7 +150,7 @@ QString BitcoinSubsidiumUnits::formatWithUnit(int unit, const CAmount& amount, b
 
 QString BitcoinSubsidiumUnits::formatWithCustomName(QString customName, const CAmount& amount, int unit, bool plussign, SeparatorStyle separators)
 {
-    return format(XBTS, amount / factorAsset(MAX_ASSET_UNITS - unit), plussign, separators, unit) + QString(" ") + customName;
+    return format(XBTX, amount / factorAsset(MAX_ASSET_UNITS - unit), plussign, separators, unit) + QString(" ") + customName;
 }
 
 QString BitcoinSubsidiumUnits::formatHtmlWithUnit(int unit, const CAmount& amount, bool plussign, SeparatorStyle separators)

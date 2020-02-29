@@ -143,9 +143,9 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP9                   : return "OP_NOP9";
     case OP_NOP10                  : return "OP_NOP10";
 
-    /** XBTS START */
-    case OP_XBTS_ASSET              : return "OP_XBTS_ASSET";
-    /** XBTS END */
+    /** XBTX START */
+    case OP_XBTX_ASSET              : return "OP_XBTX_ASSET";
+    /** XBTX END */
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
@@ -227,7 +227,7 @@ bool CScript::IsPayToScriptHash() const
             (*this)[22] == OP_EQUAL);
 }
 
-/** XBTS START */
+/** XBTX START */
 bool CScript::IsAssetScript() const
 {
     int nType = 0;
@@ -245,33 +245,33 @@ bool CScript::IsAssetScript(int& nType, bool& isOwner) const
 bool CScript::IsAssetScript(int& nType, bool& fIsOwner, int& nStartingIndex) const
 {
     if (this->size() > 30) {
-        if ((*this)[25] == OP_XBTS_ASSET) { // OP_XBTS_ASSET is always in the 25 index of the script if it exists
+        if ((*this)[25] == OP_XBTX_ASSET) { // OP_XBTX_ASSET is always in the 25 index of the script if it exists
             int index = -1;
-            if ((*this)[27] == XBTS_R) { // Check to see if XBTS starts at 27 ( this->size() < 105)
-                if ((*this)[28] == XBTS_V)
-                    if ((*this)[29] == XBTS_N)
+            if ((*this)[27] == XBTX_R) { // Check to see if XBTX starts at 27 ( this->size() < 105)
+                if ((*this)[28] == XBTX_V)
+                    if ((*this)[29] == XBTX_N)
                         index = 30;
             } else {
-                if ((*this)[28] == XBTS_R) // Check to see if XBTS starts at 28 ( this->size() >= 105)
-                    if ((*this)[29] == XBTS_V)
-                        if ((*this)[30] == XBTS_N)
+                if ((*this)[28] == XBTX_R) // Check to see if XBTX starts at 28 ( this->size() >= 105)
+                    if ((*this)[29] == XBTX_V)
+                        if ((*this)[30] == XBTX_N)
                             index = 31;
             }
 
             if (index > 0) {
                 nStartingIndex = index + 1; // Set the index where the asset data begins. Use to serialize the asset data into asset objects
-                if ((*this)[index] == XBTS_T) { // Transfer first anticipating more transfers than other assets operations
+                if ((*this)[index] == XBTX_T) { // Transfer first anticipating more transfers than other assets operations
                     nType = TX_TRANSFER_ASSET;
                     return true;
-                } else if ((*this)[index] == XBTS_Q && this->size() > 39) {
+                } else if ((*this)[index] == XBTX_Q && this->size() > 39) {
                     nType = TX_NEW_ASSET;
                     fIsOwner = false;
                     return true;
-                } else if ((*this)[index] == XBTS_O) {
+                } else if ((*this)[index] == XBTX_O) {
                     nType = TX_NEW_ASSET;
                     fIsOwner = true;
                     return true;
-                } else if ((*this)[index] == XBTS_R) {
+                } else if ((*this)[index] == XBTX_R) {
                     nType = TX_REISSUE_ASSET;
                     return true;
                 }
@@ -322,7 +322,7 @@ bool CScript::IsTransferAsset() const
 
     return false;
 }
-/** XBTS END */
+/** XBTX END */
 
 bool CScript::IsPayToWitnessScriptHash() const
 {

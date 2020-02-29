@@ -1114,10 +1114,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> > &stack, const CScript &
                     }
                         break;
 
-                        /** XBTS START */
-                    case OP_XBTS_ASSET:
+                        /** XBTX START */
+                    case OP_XBTX_ASSET:
                         break;
-                        /** XBTS END */
+                        /** XBTX END */
 
 
                     default:

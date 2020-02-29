@@ -25,7 +25,7 @@ class TxnMallTest(BitcoinSubsidiumTestFramework):
         disconnect_nodes(self.nodes[2], 1)
 
     def run_test(self):
-        # All nodes should start with 1,250 XBTS:
+        # All nodes should start with 1,250 XBTX:
         starting_balance = 125000
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
@@ -62,7 +62,7 @@ class TxnMallTest(BitcoinSubsidiumTestFramework):
 
         # createrawtransaction randomizes the order of its outputs, so swap them if necessary.
         # output 0 is at version+#inputs+input+sigstub+sequence+#outputs
-        # 40 XBTS serialized is 00286bee00000000
+        # 40 XBTX serialized is 00286bee00000000
         pos0 = 2*(4+1+36+1+4+1)
         hex40 = "00286bee00000000"
         output_len = 16 + 2 + 2 * int("0x" + clone_raw[pos0 + 16 : pos0 + 16 + 2], 0)
@@ -85,7 +85,7 @@ class TxnMallTest(BitcoinSubsidiumTestFramework):
         tx1 = self.nodes[0].gettransaction(txid1)
         tx2 = self.nodes[0].gettransaction(txid2)
 
-        # Node0's balance should be starting balance, plus 50XBTS for another
+        # Node0's balance should be starting balance, plus 50XBTX for another
         # matured block, minus tx1 and tx2 amounts, and minus transaction fees:
         expected = starting_balance + fund_foo_tx["fee"] + fund_bar_tx["fee"]
         if self.options.mine_block: expected += 5000
@@ -129,7 +129,7 @@ class TxnMallTest(BitcoinSubsidiumTestFramework):
         assert_equal(tx1_clone["confirmations"], 2)
         assert_equal(tx2["confirmations"], 1)
 
-        # Check node0's total balance; should be same as before the clone, + 100 XBTS for 2 matured,
+        # Check node0's total balance; should be same as before the clone, + 100 XBTX for 2 matured,
         # less possible orphaned matured subsidy
         expected += 10000
         if (self.options.mine_block): 

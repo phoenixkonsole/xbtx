@@ -97,7 +97,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
 
-    /** XBTS START */
+    /** XBTX START */
     if (AreAssetsDeployed()) {
         if (assetsCache) {
             if (tx.IsNewAsset()) {
@@ -162,7 +162,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
             }
         }
     }
-    /** XBTS END */
+    /** XBTX END */
 
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         bool overwrite = check ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
@@ -170,7 +170,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
         // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
         cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase), overwrite);
 
-        /** XBTS START */
+        /** XBTX START */
         if (AreAssetsDeployed()) {
             if (assetsCache) {
                 if (tx.vout[i].scriptPubKey.IsTransferAsset() && !tx.vout[i].scriptPubKey.IsUnspendable()) {
@@ -187,7 +187,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
                 }
             }
         }
-        /** XBTS END */
+        /** XBTX END */
     }
 }
 
@@ -198,9 +198,9 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout, CAsset
         return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
 
-    /** XBTS START */
+    /** XBTX START */
     Coin tempCoin = it->second.coin;
-    /** XBTS END */
+    /** XBTX END */
 
     if (moveout) {
         *moveout = std::move(it->second.coin);
@@ -212,7 +212,7 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout, CAsset
         it->second.coin.Clear();
     }
 
-    /** XBTS START */
+    /** XBTX START */
     if (AreAssetsDeployed()) {
         if (assetsCache) {
             if (!assetsCache->TrySpendCoin(outpoint, tempCoin.out)) {
@@ -220,7 +220,7 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout, CAsset
             }
         }
     }
-    /** XBTS END */
+    /** XBTX END */
 
     return true;
 }

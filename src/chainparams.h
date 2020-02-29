@@ -89,7 +89,7 @@ public:
     bool BIP66();
     bool CSVEnabled() const;
 
-    /** XBTS Start **/
+    /** XBTX Start **/
     const CAmount& IssueAssetBurnAmount() const { return nIssueAssetBurnAmount; }
     const CAmount& ReissueAssetBurnAmount() const { return nReissueAssetBurnAmount; }
     const CAmount& IssueSubAssetBurnAmount() const { return nIssueSubAssetBurnAmount; }
@@ -106,7 +106,7 @@ public:
     int MaxReorganizationDepth() const { return nMaxReorganizationDepth; }
     int MinReorganizationPeers() const { return nMinReorganizationPeers; }
     int MinReorganizationAge() const { return nMinReorganizationAge; }
-    /** XBTS End **/
+    /** XBTX End **/
 
 protected:
     CChainParams() {}
@@ -127,7 +127,7 @@ protected:
     CCheckpointData checkpointData;
     ChainTxData chainTxData;
 
-    /** XBTS Start **/
+    /** XBTX Start **/
     // Burn Amounts
     CAmount nIssueAssetBurnAmount;
     CAmount nReissueAssetBurnAmount;
@@ -148,7 +148,7 @@ protected:
     int nMaxReorganizationDepth;
     int nMinReorganizationPeers;
     int nMinReorganizationAge;
-    /** XBTS End **/
+    /** XBTX End **/
 };
 
 /**

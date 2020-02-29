@@ -559,7 +559,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     }
 
     // actually update labels
-    int nDisplayUnit = BitcoinSubsidiumUnits::XBTS;
+    int nDisplayUnit = BitcoinSubsidiumUnits::XBTX;
     if (model && model->getOptionsModel())
         nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 

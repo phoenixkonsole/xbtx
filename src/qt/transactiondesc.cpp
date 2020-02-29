@@ -52,7 +52,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 {
     QString strHTML;
 
-    if (rec->assetName != "RVN") {
+    if (rec->assetName != "XBTX") {
         return toAssetHTML(wallet, wtx, rec, unit);
     }
 
@@ -383,7 +383,7 @@ QString TransactionDesc::toAssetHTML(CWallet *wallet, CWalletTx &wtx, Transactio
         strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinSubsidiumUnits::formatWithCustomName(QString::fromStdString(rec->assetName), nAssetsRec, rec->units, true) + "<br>";
     }
 
-    strHTML += "<b>" + tr("Net RVN amount") + ":</b> " + BitcoinSubsidiumUnits::formatHtmlWithUnit(unit, nNet, true) + "<br>";
+    strHTML += "<b>" + tr("Net XBTX amount") + ":</b> " + BitcoinSubsidiumUnits::formatHtmlWithUnit(unit, nNet, true) + "<br>";
 
     //
     // Message
