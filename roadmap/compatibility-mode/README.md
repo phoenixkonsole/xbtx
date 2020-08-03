@@ -42,6 +42,7 @@ Most of the Ravencoin RPC calls do not interact with assets.  These can be strai
 ```sendtoaddress "address" amount ( "comment" "comment_to" subtractfeefromamount replaceable conf_target "estimate_mode")```  
 ```move "fromaccount" "toaccount" amount ( minconf "comment" )```  
 ```listtransactions ( "account" count skip include_watchonly)```  
+```listassetstransactions (\"asset_name\" count skip)```
 ```listunspent ( minconf maxconf  ["addresses",...] [include_unsafe] [query_options])```  
 ```getreceivedbyaddress "address" ( minconf )```  
 ```getunconfirmedbalance```  

@@ -1604,6 +1604,73 @@ void ListTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::s
     /** XBTX END */
 }
 
+bool FilterAsset(const std::string& prefix, const std::string& name, const bool wildcard)
+{
+    return prefix == "" ||
+                    (wildcard && name.find(prefix) == 0) ||
+                    (!wildcard && name == prefix);
+}
+
+void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAssetName, UniValue& retAssets)
+{
+    isminefilter filter = ISMINE_SPENDABLE | ISMINE_WATCH_ONLY;
+    int nMinDepth = 0;
+    UniValue ret;
+
+    CAmount nFee;
+    std::string strSentAccount;
+    std::list<COutputEntry> listReceived;
+    std::list<COutputEntry> listSent;
+
+    std::list<CAssetOutputEntry> listAssetsReceived;
+    std::list<CAssetOutputEntry> listAssetsSent;
+
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter, listAssetsReceived, listAssetsSent);
+
+    auto prefix = strAssetName;
+    bool wildcard = prefix.back() == '*';
+    if (wildcard) {
+        prefix.pop_back();
+    }
+
+    if (AreAssetsDeployed()) {
+        if (listAssetsReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+            for (const CAssetOutputEntry &data : listAssetsReceived) {
+                if (FilterAsset(prefix, data.assetName, wildcard)) {
+                    UniValue entry(UniValue::VOBJ);
+
+                    entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
+                    entry.push_back(Pair("asset_name", data.assetName));
+                    entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
+                    entry.push_back(Pair("destination", EncodeDestination(data.destination)));
+                    entry.push_back(Pair("vout", data.vout));
+                    entry.push_back(Pair("category", "receive"));
+                    WalletTxToJSON(wtx, entry);
+                    retAssets.push_back(entry);
+                }
+            }
+        }
+
+        if (!listAssetsSent.empty() || nFee != 0) {
+            for (const CAssetOutputEntry &data : listAssetsSent) {
+                if (FilterAsset(prefix, data.assetName, wildcard)) {
+                    UniValue entry(UniValue::VOBJ);
+
+                    entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
+                    entry.push_back(Pair("asset_name", data.assetName));
+                    entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
+                    entry.push_back(Pair("destination", EncodeDestination(data.destination)));
+                    entry.push_back(Pair("vout", data.vout));
+                    entry.push_back(Pair("category", "send"));
+                    WalletTxToJSON(wtx, entry);
+                    retAssets.push_back(entry);
+                }
+            }
+        }
+
+    }
+}
+
 void ListTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
 {
     UniValue assetDetails(UniValue::VARR);
@@ -1730,6 +1797,98 @@ UniValue listtransactions(const JSONRPCRequest& request)
         CAccountingEntry *const pacentry = (*it).second.second;
         if (pacentry != nullptr)
             AcentryToJSON(*pacentry, strAccount, ret);
+
+        if ((int)ret.size() >= (nCount+nFrom)) break;
+    }
+    // ret is newest to oldest
+
+    if (nFrom > (int)ret.size())
+        nFrom = ret.size();
+    if ((nFrom + nCount) > (int)ret.size())
+        nCount = ret.size() - nFrom;
+
+    std::vector<UniValue> arrTmp = ret.getValues();
+
+    std::vector<UniValue>::iterator first = arrTmp.begin();
+    std::advance(first, nFrom);
+    std::vector<UniValue>::iterator last = arrTmp.begin();
+    std::advance(last, nFrom+nCount);
+
+    if (last != arrTmp.end()) arrTmp.erase(last, arrTmp.end());
+    if (first != arrTmp.begin()) arrTmp.erase(arrTmp.begin(), first);
+
+    std::reverse(arrTmp.begin(), arrTmp.end()); // Return oldest to newest
+
+    ret.clear();
+    ret.setArray();
+    ret.push_backV(arrTmp);
+
+    return ret;
+}
+
+UniValue listassetstransactions(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 4)
+        throw std::runtime_error(
+            "listassetstransactions (\"asset_name\" count skip)\n"
+            "\nReturns up to 'count' most recent asset transactions skipping for specified asset name.\n"
+            "\nArguments:\n"
+            "1. \"account\"    (string, optional). The asset name.\n"
+            "2. count          (numeric, optional, default=1000) The number of transactions to return\n"
+            "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "  }\n"
+            "]\n"
+
+            "\nExamples:\n"
+            "\nList the most recent 1000 transactions for all assets in the systems\n"
+            + HelpExampleCli("listassetstransactions", "") +
+            "\nList the most recent 10 transactions for \"ASSET_1\" assets\n"
+            + HelpExampleCli("listassetstransactions", "\"ASSET_1\" 10") +
+            "\nList asset transactions 100 to 120 for all assets\n"
+            + HelpExampleCli("listassetstransactions", "\"*\" 20 100") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("listassetstransactions", "\"*\", 20, 100")
+        );
+
+    ObserveSafeMode();
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    std::string strAssetName = "*";
+    if (!request.params[0].isNull())
+        strAssetName = request.params[0].get_str();
+    if (strAssetName == "")
+        strAssetName = "*";
+
+    int nCount = 1000;
+    if (!request.params[1].isNull())
+        nCount = request.params[1].get_int();
+    int nFrom = 0;
+    if (!request.params[2].isNull())
+        nFrom = request.params[2].get_int();
+
+    if (nCount < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
+    if (nFrom < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
+
+    UniValue ret(UniValue::VARR);
+
+    const CWallet::TxItems & txOrdered = pwallet->wtxOrdered;
+
+    // iterate backwards until we have nCount items to return:
+    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it)
+    {
+        CWalletTx *const pwtx = (*it).second.first;
+        if (pwtx != nullptr)
+            ListAssetTransactions(pwallet, *pwtx, strAssetName, ret);
 
         if ((int)ret.size() >= (nCount+nFrom)) break;
     }
@@ -3369,6 +3528,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    {"minconf","include_empty","include_watchonly"} },
     { "wallet",             "listsinceblock",           &listsinceblock,           {"blockhash","target_confirmations","include_watchonly","include_removed"} },
     { "wallet",             "listtransactions",         &listtransactions,         {"account","count","skip","include_watchonly"} },
+    { "wallet",             "listassetstransactions",   &listassetstransactions,   {"asset_name","count","skip"} },
     { "wallet",             "listunspent",              &listunspent,              {"minconf","maxconf","addresses","include_unsafe","query_options"} },
     { "wallet",             "listwallets",              &listwallets,              {} },
     { "wallet",             "lockunspent",              &lockunspent,              {"unlock","transactions"} },
