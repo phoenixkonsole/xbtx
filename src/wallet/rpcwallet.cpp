@@ -1832,7 +1832,7 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
             "listassetstransactions (\"asset_name\" count skip)\n"
             "\nReturns up to 'count' most recent asset transactions skipping for specified asset name.\n"
             "\nArguments:\n"
-            "1. \"account\"    (string, optional). The asset name.\n"
+            "1. \"asset_name\" (string, optional). The asset name.\n"
             "2. count          (numeric, optional, default=1000) The number of transactions to return\n"
             "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
             "\nResult:\n"
