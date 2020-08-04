@@ -1611,17 +1611,34 @@ bool FilterAsset(const std::string& prefix, const std::string& name, const bool 
                     (!wildcard && name == prefix);
 }
 
+void ParseAssetData(const std::string& prefix, const CAssetOutputEntry& data, const CWalletTx& wtx, const std::string& category, const bool wildcard, UniValue& retAssets)
+{
+    if (FilterAsset(prefix, data.assetName, wildcard)) {
+        UniValue entry(UniValue::VOBJ);
+
+        entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
+        entry.push_back(Pair("asset_name", data.assetName));
+        entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
+        entry.push_back(Pair("destination", EncodeDestination(data.destination)));
+        entry.push_back(Pair("vout", data.vout));
+        entry.push_back(Pair("category", category));
+        WalletTxToJSON(wtx, entry);
+        retAssets.push_back(entry);
+    }
+}
+
 void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAssetName, UniValue& retAssets)
 {
+    if (!AreAssetsDeployed()) {
+        return;
+    }
+
     isminefilter filter = ISMINE_SPENDABLE | ISMINE_WATCH_ONLY;
-    int nMinDepth = 0;
-    UniValue ret;
 
     CAmount nFee;
     std::string strSentAccount;
     std::list<COutputEntry> listReceived;
     std::list<COutputEntry> listSent;
-
     std::list<CAssetOutputEntry> listAssetsReceived;
     std::list<CAssetOutputEntry> listAssetsSent;
 
@@ -1633,41 +1650,14 @@ void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const s
         prefix.pop_back();
     }
 
-    if (AreAssetsDeployed()) {
-        if (listAssetsReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
-            for (const CAssetOutputEntry &data : listAssetsReceived) {
-                if (FilterAsset(prefix, data.assetName, wildcard)) {
-                    UniValue entry(UniValue::VOBJ);
+    for (const CAssetOutputEntry& data : listAssetsReceived) {
+        ParseAssetData(prefix, data, wtx, "receive", wildcard, retAssets);
+    }
 
-                    entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
-                    entry.push_back(Pair("asset_name", data.assetName));
-                    entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
-                    entry.push_back(Pair("destination", EncodeDestination(data.destination)));
-                    entry.push_back(Pair("vout", data.vout));
-                    entry.push_back(Pair("category", "receive"));
-                    WalletTxToJSON(wtx, entry);
-                    retAssets.push_back(entry);
-                }
-            }
+    if (nFee != 0) {
+        for (const CAssetOutputEntry& data : listAssetsSent) {
+            ParseAssetData(prefix, data, wtx, "send", wildcard, retAssets);
         }
-
-        if (!listAssetsSent.empty() || nFee != 0) {
-            for (const CAssetOutputEntry &data : listAssetsSent) {
-                if (FilterAsset(prefix, data.assetName, wildcard)) {
-                    UniValue entry(UniValue::VOBJ);
-
-                    entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
-                    entry.push_back(Pair("asset_name", data.assetName));
-                    entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
-                    entry.push_back(Pair("destination", EncodeDestination(data.destination)));
-                    entry.push_back(Pair("vout", data.vout));
-                    entry.push_back(Pair("category", "send"));
-                    WalletTxToJSON(wtx, entry);
-                    retAssets.push_back(entry);
-                }
-            }
-        }
-
     }
 }
 
@@ -1833,6 +1823,10 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
+    if (!AreAssetsDeployed()) {
+        throw std::runtime_error("Assets are not active.");
+    }
+
     if (request.fHelp || request.params.size() > 4)
         throw std::runtime_error(
             "listassetstransactions (\"asset_name\" count skip)\n"
@@ -1844,6 +1838,33 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
             "\nResult:\n"
             "[\n"
             "  {\n"
+            "    \"asset_type\": \"transfer_asset\", (string) The type of asset transaction.\n"
+            "    \"asset_name\": \"ASSET_NAME\",     (string) The name of asset in transaction.\n"
+            "    \"amount\": xxx,                    (numeric) The amount of asset in transaction.\n"
+            "    \"destination\": \"address\",       (string) The BitcoinSubsidium address of the transaction.\n"
+            "    \"vout\": n,                        (numeric) the vout value\n"
+            "    \"category\": \"send|receive\",     (string) The transaction category.\n"
+            "    \"confirmations\": n,               (numeric) The number of confirmations for the transaction. Available for 'send' and \n"
+            "                                            'receive' category of transactions. Negative confirmations indicate the\n"
+            "                                            transaction conflicts with the block chain\n"
+            "    \"trusted\": xxx,                   (bool) Whether we consider the outputs of this unconfirmed transaction safe to spend.\n"
+            "    \"blockhash\": \"hashvalue\",       (string) The block hash containing the transaction. Available for 'send' and 'receive'\n"
+            "                                            category of transactions.\n"
+            "    \"blockindex\": n,                  (numeric) The index of the transaction in the block that includes it. Available for 'send' and 'receive'\n"
+            "                                            category of transactions.\n"
+            "    \"blocktime\": xxx,                 (numeric) The block time in seconds since epoch (1 Jan 1970 GMT).\n"
+            "    \"txid\": \"transactionid\",        (string) The transaction id. Available for 'send' and 'receive' category of transactions.\n"
+            "    \"time\": xxx,                      (numeric) The transaction time in seconds since epoch (midnight Jan 1 1970 GMT).\n"
+            "    \"timereceived\": xxx,              (numeric) The time received in seconds since epoch (midnight Jan 1 1970 GMT). Available \n"
+            "                                            for 'send' and 'receive' category of transactions.\n"
+            "    \"comment\": \"...\",               (string) If a comment is associated with the transaction.\n"
+            "    \"otheraccount\": \"accountname\",  (string) DEPRECATED. For the 'move' category of transactions, the account the funds came \n"
+            "                                           from (for receiving funds, positive amounts), or went to (for sending funds,\n"
+            "                                           negative amounts).\n"
+            "    \"bip125-replaceable\": \"yes|no|unknown\",  (string) Whether this transaction could be replaced due to BIP125 (replace-by-fee);\n"
+            "                                                     may be unknown for unconfirmed transactions not in the mempool\n"
+            "    \"abandoned\": xxx          (bool) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
+            "                                         'send' category of transactions.\n"
             "  }\n"
             "]\n"
 
