@@ -36,6 +36,23 @@
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
+struct AssetTxCounter
+{
+    bool Increment()
+    {
+        return ++nProcessed > nFrom;
+    }
+
+    bool IsFinished()
+    {
+        return nProcessed >= nCount + nFrom;
+    }
+
+    int nCount = 1000;
+    int nFrom = 0;
+    int nProcessed = 0;
+};
+
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
 {
     if (request.URI.substr(0, WALLET_ENDPOINT_BASE.size()) == WALLET_ENDPOINT_BASE) {
@@ -1604,6 +1621,69 @@ void ListTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::s
     /** XBTX END */
 }
 
+bool FilterAsset(const std::string& prefix, const std::string& name, const bool wildcard)
+{
+    return prefix == "" ||
+                    (wildcard && name.find(prefix) == 0) ||
+                    (!wildcard && name == prefix);
+}
+
+void ParseAssetData(const std::string& prefix, const CAssetOutputEntry& data, const CWalletTx& wtx, const std::string& category, const bool wildcard, UniValue& retAssets)
+{
+    if (FilterAsset(prefix, data.assetName, wildcard)) {
+        UniValue entry(UniValue::VOBJ);
+
+        entry.push_back(Pair("asset_type", GetTxnOutputType(data.type)));
+        entry.push_back(Pair("asset_name", data.assetName));
+        entry.push_back(Pair("amount", ValueFromAmount(data.nAmount)));
+        entry.push_back(Pair("destination", EncodeDestination(data.destination)));
+        entry.push_back(Pair("vout", data.vout));
+        entry.push_back(Pair("category", category));
+        WalletTxToJSON(wtx, entry);
+        retAssets.push_back(entry);
+    }
+}
+
+void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAssetName, AssetTxCounter& assetTxCounter, UniValue& retAssets)
+{
+    if (!AreAssetsDeployed()) {
+        return;
+    }
+
+    isminefilter filter = ISMINE_SPENDABLE | ISMINE_WATCH_ONLY;
+
+    CAmount nFee;
+    std::string strSentAccount;
+    std::list<COutputEntry> listReceived;
+    std::list<COutputEntry> listSent;
+    std::list<CAssetOutputEntry> listAssetsReceived;
+    std::list<CAssetOutputEntry> listAssetsSent;
+
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter, listAssetsReceived, listAssetsSent);
+
+    auto prefix = strAssetName;
+    bool wildcard = prefix.back() == '*';
+    if (wildcard) {
+        prefix.pop_back();
+    }
+
+    for (const CAssetOutputEntry& data : listAssetsReceived) {
+        if (assetTxCounter.Increment())
+            ParseAssetData(prefix, data, wtx, "receive", wildcard, retAssets);
+        if (assetTxCounter.IsFinished())
+            return;
+    }
+
+    if (nFee != 0) {
+        for (const CAssetOutputEntry& data : listAssetsSent) {
+            if (assetTxCounter.Increment())
+                ParseAssetData(prefix, data, wtx, "send", wildcard, retAssets);
+            if (assetTxCounter.IsFinished())
+                return;
+        }
+    }
+}
+
 void ListTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
 {
     UniValue assetDetails(UniValue::VARR);
@@ -1750,6 +1830,113 @@ UniValue listtransactions(const JSONRPCRequest& request)
     if (last != arrTmp.end()) arrTmp.erase(last, arrTmp.end());
     if (first != arrTmp.begin()) arrTmp.erase(arrTmp.begin(), first);
 
+    std::reverse(arrTmp.begin(), arrTmp.end()); // Return oldest to newest
+
+    ret.clear();
+    ret.setArray();
+    ret.push_backV(arrTmp);
+
+    return ret;
+}
+
+UniValue listassetstransactions(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (!AreAssetsDeployed()) {
+        throw std::runtime_error("Assets are not active.");
+    }
+
+    if (request.fHelp || request.params.size() > 4)
+        throw std::runtime_error(
+            "listassetstransactions (\"asset_name\" count skip)\n"
+            "\nReturns up to 'count' most recent asset transactions skipping for specified asset name.\n"
+            "\nArguments:\n"
+            "1. \"asset_name\" (string, optional). The asset name. The wildcard can be used to specify only the prefix of an asset.\n"
+            "2. count          (numeric, optional, default=1000) The number of transactions to return\n"
+            "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"asset_type\": \"transfer_asset\", (string) The type of asset transaction.\n"
+            "    \"asset_name\": \"ASSET_NAME\",     (string) The name of asset in transaction.\n"
+            "    \"amount\": xxx,                    (numeric) The amount of asset in transaction.\n"
+            "    \"destination\": \"address\",       (string) The BitcoinSubsidium address of the transaction.\n"
+            "    \"vout\": n,                        (numeric) the vout value\n"
+            "    \"category\": \"send|receive\",     (string) The transaction category.\n"
+            "    \"confirmations\": n,               (numeric) The number of confirmations for the transaction. Available for 'send' and \n"
+            "                                            'receive' category of transactions. Negative confirmations indicate the\n"
+            "                                            transaction conflicts with the block chain\n"
+            "    \"trusted\": xxx,                   (bool) Whether we consider the outputs of this unconfirmed transaction safe to spend.\n"
+            "    \"blockhash\": \"hashvalue\",       (string) The block hash containing the transaction. Available for 'send' and 'receive'\n"
+            "                                            category of transactions.\n"
+            "    \"blockindex\": n,                  (numeric) The index of the transaction in the block that includes it. Available for 'send' and 'receive'\n"
+            "                                            category of transactions.\n"
+            "    \"blocktime\": xxx,                 (numeric) The block time in seconds since epoch (1 Jan 1970 GMT).\n"
+            "    \"txid\": \"transactionid\",        (string) The transaction id. Available for 'send' and 'receive' category of transactions.\n"
+            "    \"time\": xxx,                      (numeric) The transaction time in seconds since epoch (midnight Jan 1 1970 GMT).\n"
+            "    \"timereceived\": xxx,              (numeric) The time received in seconds since epoch (midnight Jan 1 1970 GMT). Available \n"
+            "                                            for 'send' and 'receive' category of transactions.\n"
+            "    \"comment\": \"...\",               (string) If a comment is associated with the transaction.\n"
+            "    \"otheraccount\": \"accountname\",  (string) DEPRECATED. For the 'move' category of transactions, the account the funds came \n"
+            "                                           from (for receiving funds, positive amounts), or went to (for sending funds,\n"
+            "                                           negative amounts).\n"
+            "    \"bip125-replaceable\": \"yes|no|unknown\",  (string) Whether this transaction could be replaced due to BIP125 (replace-by-fee);\n"
+            "                                                     may be unknown for unconfirmed transactions not in the mempool\n"
+            "    \"abandoned\": xxx          (bool) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
+            "                                         'send' category of transactions.\n"
+            "  }\n"
+            "]\n"
+
+            "\nExamples:\n"
+            "\nList the most recent 1000 transactions for all assets in the systems\n"
+            + HelpExampleCli("listassetstransactions", "") +
+            "\nList the most recent 10 transactions for \"ASSET_1\" assets\n"
+            + HelpExampleCli("listassetstransactions", "\"ASSET_1\" 10") +
+            "\nList asset transactions 100 to 120 for all assets\n"
+            + HelpExampleCli("listassetstransactions", "\"*\" 20 100") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("listassetstransactions", "\"*\", 20, 100")
+        );
+
+    ObserveSafeMode();
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    std::string strAssetName = "*";
+    if (!request.params[0].isNull())
+        strAssetName = request.params[0].get_str();
+    if (strAssetName == "")
+        strAssetName = "*";
+
+    AssetTxCounter assetTxCounter;
+    if (!request.params[1].isNull())
+        assetTxCounter.nCount = request.params[1].get_int();
+    if (!request.params[2].isNull())
+        assetTxCounter.nFrom = request.params[2].get_int();
+
+    if (assetTxCounter.nCount < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
+    if (assetTxCounter.nFrom < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative skip");
+
+    UniValue ret(UniValue::VARR);
+
+    const CWallet::TxItems & txOrdered = pwallet->wtxOrdered;
+
+    // iterate backwards until we have nCount items to return:
+    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it)
+    {
+        CWalletTx *const pwtx = (*it).second.first;
+        if (pwtx != nullptr)
+            ListAssetTransactions(pwallet, *pwtx, strAssetName, assetTxCounter, ret);
+
+        if (assetTxCounter.IsFinished()) break;
+    }
+
+    std::vector<UniValue> arrTmp = ret.getValues();
     std::reverse(arrTmp.begin(), arrTmp.end()); // Return oldest to newest
 
     ret.clear();
@@ -3369,6 +3556,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    {"minconf","include_empty","include_watchonly"} },
     { "wallet",             "listsinceblock",           &listsinceblock,           {"blockhash","target_confirmations","include_watchonly","include_removed"} },
     { "wallet",             "listtransactions",         &listtransactions,         {"account","count","skip","include_watchonly"} },
+    { "wallet",             "listassetstransactions",   &listassetstransactions,   {"asset_name","count","skip"} },
     { "wallet",             "listunspent",              &listunspent,              {"minconf","maxconf","addresses","include_unsafe","query_options"} },
     { "wallet",             "listwallets",              &listwallets,              {} },
     { "wallet",             "lockunspent",              &lockunspent,              {"unlock","transactions"} },
