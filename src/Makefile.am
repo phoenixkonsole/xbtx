@@ -82,6 +82,7 @@ endif
 BitcoinSubsidium_CORE_H = \
   addrdb.h \
   addressindex.h \
+  attributes.h \
   spentindex.h \
   timestampindex.h \
   addrman.h \
@@ -323,7 +324,13 @@ crypto_libBitcoinSubsidium_crypto_a_SOURCES = \
   crypto/sph_sha2.h \
   crypto/sph_types.h \
   crypto/sha512.cpp \
-  crypto/sha512.h
+  crypto/sha512.h \
+  crypto/scrypt-arm.S \
+  crypto/scrypt-x86.S \
+  crypto/scrypt-x64.S \
+  crypto/scrypt.cpp \
+  crypto/scrypt.h \
+  crypto/scrypt-armv8.c 
 
 if USE_ASM
 crypto_libBitcoinSubsidium_crypto_a_SOURCES += crypto/sha256_sse4.cpp
