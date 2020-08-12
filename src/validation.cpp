@@ -3622,7 +3622,21 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    CBlockIndex* tip = chainActive.Tip();
+    assert(tip != nullptr);
+    
+    if (IsBlockX16R(tip->nHeight) && fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    return true;
+}
+
+static bool CheckBlockHeaderWorkHash(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+{
+    // Check proof of work matches claimed amount
+    CBlockIndex* tip = chainActive.Tip();
+    assert(tip != nullptr);
+
+    if (!IsBlockX16R(tip->nHeight) && fCheckPOW && !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams)) 
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
     return true;
 }
@@ -3638,6 +3652,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     // redundant with the call in AcceptBlockHeader.
     if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
+    if (!CheckBlockHeaderWorkHash(block, state, consensusParams, fCheckPOW))
+        return false;
+        
+    // Check proof of work matches claimed amount
 
     // Check the merkle root.
     if (fCheckMerkleRoot) {
@@ -5369,7 +5387,7 @@ double GuessVerificationProgress(const ChainTxData& data, CBlockIndex *pindex) {
 
 /** XBTX START */
 bool AreAssetsDeployed() {
-
+fAssetsIsActive = true;
     if (fAssetsIsActive)
         return true;
 

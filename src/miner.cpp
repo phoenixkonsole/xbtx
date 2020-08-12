@@ -14,6 +14,7 @@
 #include "consensus/tx_verify.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
+#include "crypto/scrypt.h"
 #include "hash.h"
 #include "validation.h"
 #include "net.h"
@@ -507,6 +508,253 @@ CWallet *GetFirstWallet() {
     return(vpwallets[0]);
 }
 
+void CalculateHashingSpeed()
+{
+    nHashesDone += 1;
+    if (nHashesDone % 500000 == 0) {   //Calculate hashing speed
+        nHashesPerSec = nHashesDone / (((GetTimeMicros() - nMiningTimeStart) / 1000000) + 1);
+    } 
+}
+
+void static SearchX16R(const CChainParams& chainparams, std::shared_ptr<CReserveScript> coinbaseScript, CBlock *pblock, CBlockIndex* pindexPrev, unsigned int nTransactionsUpdatedLast)
+{
+    int64_t nStart = GetTime();
+    arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
+    while (true)
+    {
+        uint256 hash;
+        while (true)
+        {
+            hash = pblock->GetHash();
+            if (UintToArith256(hash) <= hashTarget)
+            {
+                // Found a solution
+                SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                LogPrintf("BitcoinSubsidiumMiner:\n  proof-of-work found\n  hash: %s\n  target: %s\n", hash.GetHex(), hashTarget.GetHex());
+                ProcessBlockFound(pblock, chainparams);
+                SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                coinbaseScript->KeepScript();
+
+                // In regression test mode, stop mining after a block is found. This
+                // allows developers to controllably generate a block on demand.
+                if (chainparams.MineBlocksOnDemand())
+                    throw boost::thread_interrupted();
+
+                break;
+            }
+            pblock->nNonce += 1;
+            CalculateHashingSpeed();
+            if ((pblock->nNonce & 0xFF) == 0)
+                break;
+        }
+
+        // Check for stop or if block needs to be rebuilt
+        boost::this_thread::interruption_point();
+        // Regtest mode doesn't require peers
+        //if (vNodes.empty() && chainparams.MiningRequiresPeers())
+        //    break;
+        if (pblock->nNonce >= 0xffff0000)
+            break;
+        if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+            break;
+        if (pindexPrev != chainActive.Tip())
+            break;
+
+        // Update nTime every few seconds
+        if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
+            break; // Recreate the block if the clock has run backwards,
+                    // so that we can use the correct time.
+        if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
+        {
+            // Changing pblock->nTime can change work required on testnet:
+            hashTarget.SetCompact(pblock->nBits);
+        }
+    }
+}
+
+
+
+double hashrate = 0.;
+bool fGenerateHash = false;
+static int64_t timeElapsed = 30000;
+double dHashesPerMin = 0.0;
+int64_t nHPSTimerStart = 0;
+
+static const unsigned int pSHA256InitState[8] =
+{0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+
+int static FormatHashBlocks(void* pbuffer, unsigned int len)
+{
+    unsigned char* pdata = (unsigned char*)pbuffer;
+    unsigned int blocks = 1 + ((len + 8) / 64);
+    unsigned char* pend = pdata + 64 * blocks;
+    memset(pdata + len, 0, 64 * blocks - len);
+    pdata[len] = 0x80;
+    unsigned int bits = len * 8;
+    pend[-1] = (bits >> 0) & 0xff;
+    pend[-2] = (bits >> 8) & 0xff;
+    pend[-3] = (bits >> 16) & 0xff;
+    pend[-4] = (bits >> 24) & 0xff;
+    return blocks;
+}
+
+inline uint32_t ByteReverse(uint32_t value)
+{
+    value = ((value & 0xFF00FF00) >> 8) | ((value & 0x00FF00FF) << 8);
+    return (value<<16) | (value>>16);
+}
+
+void SHA256Transform(void* pstate, void* pinput, const void* pinit)
+{
+    SHA256_CTX ctx;
+    unsigned char data[64];
+
+    SHA256_Init(&ctx);
+
+    for (int i = 0; i < 16; i++)
+        ((uint32_t*)data)[i] = ByteReverse(((uint32_t*)pinput)[i]);
+
+    for (int i = 0; i < 8; i++)
+        ctx.h[i] = ((uint32_t*)pinit)[i];
+
+    SHA256_Update(&ctx, data, sizeof(data));
+    for (int i = 0; i < 8; i++)
+        ((uint32_t*)pstate)[i] = ctx.h[i];
+}
+
+void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1)
+{
+    //
+    // Pre-build hash buffers
+    //
+    struct
+    {
+        struct unnamed2
+        {
+            int nVersion;
+            uint256 hashPrevBlock;
+            uint256 hashMerkleRoot;
+            unsigned int nTime;
+            unsigned int nBits;
+            unsigned int nNonce;
+        }
+        block;
+        unsigned char pchPadding0[64];
+        uint256 hash1;
+        unsigned char pchPadding1[64];
+    }
+    tmp;
+    memset(&tmp, 0, sizeof(tmp));
+
+    tmp.block.nVersion       = pblock->nVersion;
+    tmp.block.hashPrevBlock  = pblock->hashPrevBlock;
+    tmp.block.hashMerkleRoot = pblock->hashMerkleRoot;
+    tmp.block.nTime          = pblock->nTime;
+    tmp.block.nBits          = pblock->nBits;
+    tmp.block.nNonce         = pblock->nNonce;
+
+    FormatHashBlocks(&tmp.block, sizeof(tmp.block));
+    FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
+
+    // Byte swap all the input buffer
+    for (unsigned int i = 0; i < sizeof(tmp)/4; i++)
+        ((unsigned int*)&tmp)[i] = ByteReverse(((unsigned int*)&tmp)[i]);
+
+    // Precalc the first half of the first hash, which stays constant
+    SHA256Transform(pmidstate, &tmp.block, pSHA256InitState);
+
+    memcpy(pdata, &tmp.block, 128);
+    memcpy(phash1, &tmp.hash1, 64);
+}
+
+// Align by increasing pointer, must have extra space at end of buffer
+template <size_t nBytes, typename T>
+T* alignup(T* p)
+{
+    union
+    {
+        T* ptr;
+        size_t n;
+    } u;
+    u.ptr = p;
+    u.n = (u.n + (nBytes-1)) & ~(nBytes-1);
+    return u.ptr;
+}
+
+bool CheckWork(CBlock* pblock)
+{
+    arith_uint256 hashBlock = UintToArith256(pblock->GetWorkHash());
+    arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
+    CBlockIndex* pindexPrev = chainActive.Tip();
+
+    if (hashBlock > hashTarget){
+        return error("CheckWork() : proof-of-work not meeting target");
+    } else {
+	    if (pblock->hashPrevBlock != pindexPrev->GetBlockHash()){
+			return error("CheckWork() : generated block is stale");
+		}
+
+        LogPrintf("New proof-of-work block found with: %s coins generated.\n", FormatMoney(pblock->vtx[0]->vout[0].nValue).c_str());
+
+        // Process this block the same as if we had received it from another node
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
+            return error("CheckWork() : ProcessBlock, block not accepted");
+    }
+
+    return true;
+}
+
+void static SearchScrypt2(CBlock *pblock, CBlockIndex* pindexPrev, unsigned char *scratchbuf, unsigned int nTransactionsUpdatedLast)
+{
+    // Pre-build hash buffers
+    char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
+    char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
+    char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
+    FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+    unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
+
+    // Search
+    int64_t nStart = GetTime();
+    uint256 hashTarget = ArithToUint256(arith_uint256().SetCompact(pblock->nBits));
+    while (fGenerateHash)
+    {
+        unsigned int nHashesDone = 0;
+        if (fGenerateHash)
+        {
+            // scrypt^2
+            int nHashes = 0;
+            if (scrypt_N_1_1_256_multi(BEGIN(pblock->nVersion), hashTarget, &nHashes, scratchbuf))
+            {
+                // Found a solution
+                LogPrintf("Miner found a solution\n");
+                SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                CheckWork(pblock);
+                SetThreadPriority(THREAD_PRIORITY_LOWEST);
+            }
+            nHashesDone += nHashes;
+            pblock->nNonce += nHashes;
+        }
+
+        CalculateHashingSpeed();
+
+        // Check for stop or if block needs to be rebuilt
+        boost::this_thread::interruption_point();
+        if (!fGenerateHash)
+            break;
+        if (pblock->nNonce >= 0xffff0000)
+            break;
+        if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+            break;
+        if (pindexPrev != chainActive.Tip())
+            break;
+
+        // Update nTime every few seconds
+        UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
+        nBlockTime = ByteReverse(pblock->nTime);
+    }
+}
+
 void static BitcoinSubsidiumMiner(const CChainParams& chainparams)
 {
     LogPrintf("BitcoinSubsidiumMiner -- started\n");
@@ -554,6 +802,7 @@ void static BitcoinSubsidiumMiner(const CChainParams& chainparams)
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
         }
 
+        unsigned char *scratchbuf = scrypt_buffer_alloc();
 
         while (true) {
 
@@ -595,62 +844,13 @@ void static BitcoinSubsidiumMiner(const CChainParams& chainparams)
             //
             // Search
             //
-            int64_t nStart = GetTime();
-            arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
-            while (true)
-            {
-
-                uint256 hash;
-                while (true)
-                {
-                    hash = pblock->GetHash();
-                    if (UintToArith256(hash) <= hashTarget)
-                    {
-                        // Found a solution
-                        SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                        LogPrintf("BitcoinSubsidiumMiner:\n  proof-of-work found\n  hash: %s\n  target: %s\n", hash.GetHex(), hashTarget.GetHex());
-                        ProcessBlockFound(pblock, chainparams);
-                        SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                        coinbaseScript->KeepScript();
-
-                        // In regression test mode, stop mining after a block is found. This
-                        // allows developers to controllably generate a block on demand.
-                        if (chainparams.MineBlocksOnDemand())
-                            throw boost::thread_interrupted();
-
-                        break;
-                    }
-                    pblock->nNonce += 1;
-                    nHashesDone += 1;
-                    if (nHashesDone % 500000 == 0) {   //Calculate hashing speed
-                        nHashesPerSec = nHashesDone / (((GetTimeMicros() - nMiningTimeStart) / 1000000) + 1);
-                    } 
-                    if ((pblock->nNonce & 0xFF) == 0)
-                        break;
-                }
-
-                // Check for stop or if block needs to be rebuilt
-                boost::this_thread::interruption_point();
-                // Regtest mode doesn't require peers
-                //if (vNodes.empty() && chainparams.MiningRequiresPeers())
-                //    break;
-                if (pblock->nNonce >= 0xffff0000)
-                    break;
-                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
-                    break;
-                if (pindexPrev != chainActive.Tip())
-                    break;
-
-                // Update nTime every few seconds
-                if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
-                    break; // Recreate the block if the clock has run backwards,
-                           // so that we can use the correct time.
-                if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
-                {
-                    // Changing pblock->nTime can change work required on testnet:
-                    hashTarget.SetCompact(pblock->nBits);
-                }
+            if (IsBlockX16R(pindexPrev->nHeight + 1)) {
+                SearchX16R(chainparams, coinbaseScript, pblock, pindexPrev, nTransactionsUpdatedLast);
             }
+            else {
+                SearchScrypt2(pblock, pindexPrev, scratchbuf, nTransactionsUpdatedLast);
+            }
+                
         }
     }
     catch (const boost::thread_interrupted&)

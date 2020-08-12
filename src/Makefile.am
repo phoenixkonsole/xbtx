@@ -325,6 +325,9 @@ crypto_libBitcoinSubsidium_crypto_a_SOURCES = \
   crypto/sph_types.h \
   crypto/sha512.cpp \
   crypto/sha512.h \
+  crypto/sha2-arm.S \
+  crypto/sha2-x86.S \
+  crypto/sha2-x64.S \
   crypto/scrypt-arm.S \
   crypto/scrypt-x86.S \
   crypto/scrypt-x64.S \
