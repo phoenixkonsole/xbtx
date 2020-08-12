@@ -1163,7 +1163,8 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    uint256 blockHash = IsBlockX16R(chainActive.Tip()->nHeight) ? block.GetHash() : block.GetWorkHash();
+    if (!CheckProofOfWork(blockHash, block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -3623,10 +3624,10 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 {
     // Check proof of work matches claimed amount
     CBlockIndex* tip = chainActive.Tip();
-    assert(tip != nullptr);
+    const bool isX16R = tip == nullptr || IsBlockX16R(tip->nHeight);
     
-    if (IsBlockX16R(tip->nHeight) && fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    if (isX16R && fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work x16r failed");
     return true;
 }
 
@@ -3634,10 +3635,10 @@ static bool CheckBlockHeaderWorkHash(const CBlockHeader& block, CValidationState
 {
     // Check proof of work matches claimed amount
     CBlockIndex* tip = chainActive.Tip();
-    assert(tip != nullptr);
+    const bool isX16R = tip == nullptr || IsBlockX16R(tip->nHeight);
 
-    if (!IsBlockX16R(tip->nHeight) && fCheckPOW && !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams)) 
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    if (!isX16R && fCheckPOW && !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams)) 
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetWorkHash().ToString() + " proof of work scrypt2 failed");
     return true;
 }
 

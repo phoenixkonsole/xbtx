@@ -575,7 +575,6 @@ void static SearchX16R(const CChainParams& chainparams, std::shared_ptr<CReserve
 
 
 double hashrate = 0.;
-bool fGenerateHash = false;
 static int64_t timeElapsed = 30000;
 double dHashesPerMin = 0.0;
 int64_t nHPSTimerStart = 0;
@@ -606,20 +605,11 @@ inline uint32_t ByteReverse(uint32_t value)
 
 void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 {
-    SHA256_CTX ctx;
     unsigned char data[64];
-
-    SHA256_Init(&ctx);
-
     for (int i = 0; i < 16; i++)
         ((uint32_t*)data)[i] = ByteReverse(((uint32_t*)pinput)[i]);
 
-    for (int i = 0; i < 8; i++)
-        ctx.h[i] = ((uint32_t*)pinit)[i];
-
-    SHA256_Update(&ctx, data, sizeof(data));
-    for (int i = 0; i < 8; i++)
-        ((uint32_t*)pstate)[i] = ctx.h[i];
+    CSHA256().Write(data, sizeof(data)).Finalize((unsigned char*)pstate);
 }
 
 void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1)
@@ -717,31 +707,27 @@ void static SearchScrypt2(CBlock *pblock, CBlockIndex* pindexPrev, unsigned char
     // Search
     int64_t nStart = GetTime();
     uint256 hashTarget = ArithToUint256(arith_uint256().SetCompact(pblock->nBits));
-    while (fGenerateHash)
+    while (true)
     {
         unsigned int nHashesDone = 0;
-        if (fGenerateHash)
+
+        // scrypt^2
+        int nHashes = 0;
+        if (scrypt_N_1_1_256_multi(BEGIN(pblock->nVersion), hashTarget, &nHashes, scratchbuf) && UintToArith256(pblock->GetWorkHash()) <= UintToArith256(hashTarget))
         {
-            // scrypt^2
-            int nHashes = 0;
-            if (scrypt_N_1_1_256_multi(BEGIN(pblock->nVersion), hashTarget, &nHashes, scratchbuf))
-            {
-                // Found a solution
-                LogPrintf("Miner found a solution\n");
-                SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                CheckWork(pblock);
-                SetThreadPriority(THREAD_PRIORITY_LOWEST);
-            }
-            nHashesDone += nHashes;
-            pblock->nNonce += nHashes;
+            // Found a solution
+            LogPrintf("Miner found a solution\n");
+            SetThreadPriority(THREAD_PRIORITY_NORMAL);
+            CheckWork(pblock);
+            SetThreadPriority(THREAD_PRIORITY_LOWEST);
         }
+        nHashesDone += nHashes;
+        pblock->nNonce += nHashes;
 
         CalculateHashingSpeed();
 
         // Check for stop or if block needs to be rebuilt
         boost::this_thread::interruption_point();
-        if (!fGenerateHash)
-            break;
         if (pblock->nNonce >= 0xffff0000)
             break;
         if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
