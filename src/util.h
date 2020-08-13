@@ -359,4 +359,6 @@ std::string CopyrightHolders(const std::string &strPrefix);
 
 void SetThreadPriority(int nPriority);
 
+bool IsBlockX16R(int blockHeight);
+
 #endif // BitcoinSubsidium_UTIL_H
