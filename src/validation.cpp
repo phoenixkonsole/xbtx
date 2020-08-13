@@ -5388,7 +5388,6 @@ double GuessVerificationProgress(const ChainTxData& data, CBlockIndex *pindex) {
 
 /** XBTX START */
 bool AreAssetsDeployed() {
-fAssetsIsActive = true;
     if (fAssetsIsActive)
         return true;
 
