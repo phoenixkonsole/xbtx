@@ -36,6 +36,23 @@
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
+struct AssetTxCounter
+{
+    bool Increment()
+    {
+        return ++nProcessed > nFrom;
+    }
+
+    bool IsFinished()
+    {
+        return nProcessed >= nCount + nFrom;
+    }
+
+    int nCount = 1000;
+    int nFrom = 0;
+    int nProcessed = 0;
+};
+
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
 {
     if (request.URI.substr(0, WALLET_ENDPOINT_BASE.size()) == WALLET_ENDPOINT_BASE) {
@@ -1627,7 +1644,7 @@ void ParseAssetData(const std::string& prefix, const CAssetOutputEntry& data, co
     }
 }
 
-void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAssetName, UniValue& retAssets)
+void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const std::string& strAssetName, AssetTxCounter& assetTxCounter, UniValue& retAssets)
 {
     if (!AreAssetsDeployed()) {
         return;
@@ -1651,12 +1668,18 @@ void ListAssetTransactions(CWallet* const pwallet, const CWalletTx& wtx, const s
     }
 
     for (const CAssetOutputEntry& data : listAssetsReceived) {
-        ParseAssetData(prefix, data, wtx, "receive", wildcard, retAssets);
+        if (assetTxCounter.Increment())
+            ParseAssetData(prefix, data, wtx, "receive", wildcard, retAssets);
+        if (assetTxCounter.IsFinished())
+            return;
     }
 
     if (nFee != 0) {
         for (const CAssetOutputEntry& data : listAssetsSent) {
-            ParseAssetData(prefix, data, wtx, "send", wildcard, retAssets);
+            if (assetTxCounter.Increment())
+                ParseAssetData(prefix, data, wtx, "send", wildcard, retAssets);
+            if (assetTxCounter.IsFinished())
+                return;
         }
     }
 }
@@ -1832,7 +1855,7 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
             "listassetstransactions (\"asset_name\" count skip)\n"
             "\nReturns up to 'count' most recent asset transactions skipping for specified asset name.\n"
             "\nArguments:\n"
-            "1. \"account\"    (string, optional). The asset name.\n"
+            "1. \"asset_name\" (string, optional). The asset name. The wildcard can be used to specify only the prefix of an asset.\n"
             "2. count          (numeric, optional, default=1000) The number of transactions to return\n"
             "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
             "\nResult:\n"
@@ -1888,17 +1911,16 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
     if (strAssetName == "")
         strAssetName = "*";
 
-    int nCount = 1000;
+    AssetTxCounter assetTxCounter;
     if (!request.params[1].isNull())
-        nCount = request.params[1].get_int();
-    int nFrom = 0;
+        assetTxCounter.nCount = request.params[1].get_int();
     if (!request.params[2].isNull())
-        nFrom = request.params[2].get_int();
+        assetTxCounter.nFrom = request.params[2].get_int();
 
-    if (nCount < 0)
+    if (assetTxCounter.nCount < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
-    if (nFrom < 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
+    if (assetTxCounter.nFrom < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative skip");
 
     UniValue ret(UniValue::VARR);
 
@@ -1909,27 +1931,12 @@ UniValue listassetstransactions(const JSONRPCRequest& request)
     {
         CWalletTx *const pwtx = (*it).second.first;
         if (pwtx != nullptr)
-            ListAssetTransactions(pwallet, *pwtx, strAssetName, ret);
+            ListAssetTransactions(pwallet, *pwtx, strAssetName, assetTxCounter, ret);
 
-        if ((int)ret.size() >= (nCount+nFrom)) break;
+        if (assetTxCounter.IsFinished()) break;
     }
-    // ret is newest to oldest
-
-    if (nFrom > (int)ret.size())
-        nFrom = ret.size();
-    if ((nFrom + nCount) > (int)ret.size())
-        nCount = ret.size() - nFrom;
 
     std::vector<UniValue> arrTmp = ret.getValues();
-
-    std::vector<UniValue>::iterator first = arrTmp.begin();
-    std::advance(first, nFrom);
-    std::vector<UniValue>::iterator last = arrTmp.begin();
-    std::advance(last, nFrom+nCount);
-
-    if (last != arrTmp.end()) arrTmp.erase(last, arrTmp.end());
-    if (first != arrTmp.begin()) arrTmp.erase(arrTmp.begin(), first);
-
     std::reverse(arrTmp.begin(), arrTmp.end()); // Return oldest to newest
 
     ret.clear();

@@ -12,6 +12,7 @@
 #include "pow.h"
 #include "tinyformat.h"
 #include "uint256.h"
+#include "util.h"
 
 #include <vector>
 
@@ -418,7 +419,11 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
-        return block.GetHash();
+        if (IsBlockX16R(nHeight)) {
+            return block.GetHash();
+        } else {
+            return block.GetWorkHash();
+        }
     }
 
 

@@ -1163,7 +1163,8 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    uint256 blockHash = (chainActive.Tip() == nullptr || IsBlockX16R(chainActive.Tip()->nHeight)) ? block.GetHash() : block.GetWorkHash();
+    if (!CheckProofOfWork(blockHash, block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -3622,8 +3623,22 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    CBlockIndex* tip = chainActive.Tip();
+    const bool isX16R = tip == nullptr || IsBlockX16R(tip->nHeight);
+    
+    if (isX16R && fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work x16r failed");
+    return true;
+}
+
+static bool CheckBlockHeaderWorkHash(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+{
+    // Check proof of work matches claimed amount
+    CBlockIndex* tip = chainActive.Tip();
+    const bool isX16R = tip == nullptr || IsBlockX16R(tip->nHeight);
+
+    if (!isX16R && fCheckPOW && !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams)) 
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetWorkHash().ToString() + " proof of work scrypt2 failed");
     return true;
 }
 
@@ -3638,6 +3653,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     // redundant with the call in AcceptBlockHeader.
     if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
+    if (!CheckBlockHeaderWorkHash(block, state, consensusParams, fCheckPOW))
+        return false;
+        
+    // Check proof of work matches claimed amount
 
     // Check the merkle root.
     if (fCheckMerkleRoot) {
@@ -5369,7 +5388,6 @@ double GuessVerificationProgress(const ChainTxData& data, CBlockIndex *pindex) {
 
 /** XBTX START */
 bool AreAssetsDeployed() {
-
     if (fAssetsIsActive)
         return true;
 
