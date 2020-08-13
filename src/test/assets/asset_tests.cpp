@@ -59,13 +59,13 @@ BOOST_FIXTURE_TEST_SUITE(asset_tests, BasicTestingSetup)
         BOOST_CHECK(!IsAssetNameValid("BitcoinSubsidiumCOIN", type));
 
         //- Versions of BitcoinSubsidiumCOIN ALLOWED
-        BOOST_CHECK(IsAssetNameValid("BitcoinSubsidium.COIN", type));
-        BOOST_CHECK(IsAssetNameValid("BitcoinSubsidium_COIN", type));
+        BOOST_CHECK(IsAssetNameValid("BITCOINSUBSIDIUM.COIN", type));
+        BOOST_CHECK(IsAssetNameValid("BITCOINSUBSIDIUM_COIN", type));
         BOOST_CHECK(IsAssetNameValid("XBTXSPYDER", type));
         BOOST_CHECK(IsAssetNameValid("SPYDERXBTX", type));
-        BOOST_CHECK(IsAssetNameValid("BitcoinSubsidiumSPYDER", type));
-        BOOST_CHECK(IsAssetNameValid("SPYDEBitcoinSubsidium", type));
-        BOOST_CHECK(IsAssetNameValid("BLACK_BitcoinSubsidiumS", type));
+        BOOST_CHECK(IsAssetNameValid("BITCOINSUBSIDIUMSPYDER", type));
+        BOOST_CHECK(IsAssetNameValid("SPYDEBITCOINSUBSIDIUM", type));
+        BOOST_CHECK(IsAssetNameValid("BLACK_BITCOINSUBSIDIUMS", type));
         BOOST_CHECK(IsAssetNameValid("SEXBTXOT", type));
 
         // subs

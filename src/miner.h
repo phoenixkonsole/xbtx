@@ -203,6 +203,7 @@ private:
 };
 
 /** Modify the extranonce in a block */
+void SHA256Transform(void* pstate, void* pinput, const void* pinit);
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 
