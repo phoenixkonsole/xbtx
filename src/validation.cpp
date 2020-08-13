@@ -1163,7 +1163,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    uint256 blockHash = IsBlockX16R(chainActive.Tip()->nHeight) ? block.GetHash() : block.GetWorkHash();
+    uint256 blockHash = (chainActive.Tip() == nullptr || IsBlockX16R(chainActive.Tip()->nHeight)) ? block.GetHash() : block.GetWorkHash();
     if (!CheckProofOfWork(blockHash, block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
