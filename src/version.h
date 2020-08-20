@@ -50,6 +50,6 @@ static const int ASSETDATA_VERSION = 70017;
 static const int ASSETDATA_VERSION_UPDATED = 70020;
 
 //! mining algorithm changed to scrypt2
-static const int INVALID_CB_NO_BAN_VERSION = 70030;
+static const int SCRYPT2_ALGORITHM_VERSION = 70030;
 
 #endif // BitcoinSubsidium_VERSION_H
