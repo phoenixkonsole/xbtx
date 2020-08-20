@@ -10,7 +10,7 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 70020;
+static const int PROTOCOL_VERSION = 70030;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
@@ -48,5 +48,8 @@ static const int ASSETDATA_VERSION = 70017;
 
 //! getassetdata reutrn asstnotfound, and assetdata doesn't have blockhash in the data
 static const int ASSETDATA_VERSION_UPDATED = 70020;
+
+//! mining algorithm changed to scrypt2
+static const int SCRYPT2_ALGORITHM_VERSION = 70030;
 
 #endif // BitcoinSubsidium_VERSION_H
