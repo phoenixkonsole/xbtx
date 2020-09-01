@@ -2019,6 +2019,9 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     /** If the assets are deployed now. We need to use the correct block version */
     if (AreAssetsDeployed())
         nVersion = VERSIONBITS_TOP_BITS_ASSETS;
+        
+    if (AreScrypt2Deployed())
+        nVersion = VERSIONBITS_TOP_BITS_SCRYPT_2;
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -3622,12 +3625,15 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    // Check proof of work matches claimed amount
-    CBlockIndex* tip = chainActive.Tip();
-    const bool isX16R = tip == nullptr || IsBlockX16R(tip->nHeight);
-    
-    if (isX16R && fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work x16r failed");
+    /*
+     *
+     *   Header verification takes a long time due to having to compute scrypt hashes.
+     * This is a lengthy process, and so for this reason we skip it. This is acceptable
+     * since we're going to run a full validation of each and every block in the chain
+     * once the full data set is received.
+     *
+     */
+
     return true;
 }
 
@@ -3838,6 +3844,10 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
 
     // Reject outdated veresion blocks onces assets are active.
     if (AreAssetsDeployed() && block.nVersion < VERSIONBITS_TOP_BITS_ASSETS)
+        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
+
+    // Reject outdated veresion blocks onces forked to scrypt^2.
+    if (AreScrypt2Deployed() && block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2)
         return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
     return true;
@@ -5396,6 +5406,17 @@ bool AreAssetsDeployed() {
         fAssetsIsActive = true;
 
     return fAssetsIsActive;
+}
+
+bool AreScrypt2Deployed() {
+    if (fScrypt2IsActive)
+        return true;
+
+    const ThresholdState thresholdState = VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_SCRYPT2);
+    if (thresholdState == THRESHOLD_ACTIVE)
+        fScrypt2IsActive = true;
+
+    return fScrypt2IsActive;
 }
 
 bool IsDGWActive(unsigned int nBlockNumber) {
