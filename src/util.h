@@ -359,6 +359,7 @@ std::string CopyrightHolders(const std::string &strPrefix);
 
 void SetThreadPriority(int nPriority);
 
+static const int SCRYPT2_THRESHOLD = 667000;
 bool IsBlockX16R(int blockHeight);
 
 #endif // BitcoinSubsidium_UTIL_H

@@ -15,6 +15,11 @@
 #include "chainparams.h"
 #include "tinyformat.h"
 
+bool IsScrypt2ForkBlocks(const int nLastBlockHeight)
+{
+    return nLastBlockHeight > SCRYPT2_THRESHOLD && nLastBlockHeight < SCRYPT2_THRESHOLD + 5;
+}
+
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
     assert(pindexLast != nullptr);
@@ -22,6 +27,12 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     int64_t nPastBlocks = 180; // ~3hr
+
+    // Set low difficulty for first blocks after switching to scrypt^2 algorithm
+    if (IsScrypt2ForkBlocks(pindexLast->nHeight)) {
+        arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 11);
+        return scrypt2MinDifficulty.GetCompact();
+    }
 
     // make sure we have at least (nPastBlocks + 1) blocks, otherwise just return powLimit
     if (!pindexLast || pindexLast->nHeight < nPastBlocks) {

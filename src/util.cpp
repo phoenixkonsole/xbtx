@@ -947,6 +947,5 @@ void SetThreadPriority(int nPriority)
 
 bool IsBlockX16R(int blockHeight)
 {
-    static const int SCRYPT2_THRESHOLD = 667000;
     return blockHeight < SCRYPT2_THRESHOLD;
 }
