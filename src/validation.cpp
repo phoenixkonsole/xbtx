@@ -2114,7 +2114,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     assert(pindex);
     // pindex->phashBlock can be null if called by CreateNewBlock/TestBlockValidity
     assert((pindex->phashBlock == nullptr) ||
-           (*pindex->phashBlock == block.GetNextBlockHash()));
+           (*pindex->phashBlock == block.GetBlockHash(pindex->nHeight)));
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
@@ -2128,7 +2128,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
-    if (block.GetTipHash() == chainparams.GetConsensus().hashGenesisBlock) {
+    if (block.GetBlockHash(pindex->nHeight) == chainparams.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
@@ -2507,7 +2507,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         std::pair<std::string, CBlockAssetUndo>* undoAssetData = &undoPair;
         /** XBTX END */
 
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetTipHash(), assetsCache, undoAssetData);
+        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetBlockHash(pindex->nHeight), assetsCache, undoAssetData);
 
         /** XBTX START */
         if (!undoAssetData->first.empty()) {
@@ -2552,7 +2552,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         }
 
         if (vUndoAssetData.size()) {
-            if (!passetsdb->WriteBlockUndoAssetData(block.GetTipHash(), vUndoAssetData))
+            if (!passetsdb->WriteBlockUndoAssetData(block.GetBlockHash(pindex->nHeight), vUndoAssetData))
                 return AbortNode(state, "Failed to write asset undo data");
         }
 
