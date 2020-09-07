@@ -165,6 +165,7 @@ BitcoinSubsidium_CORE_H = \
   ui_interface.h \
   undo.h \
   util.h \
+  forkutil.h \
   utilmoneystr.h \
   utiltime.h \
   validation.h \
@@ -417,6 +418,7 @@ libBitcoinSubsidium_util_a_SOURCES = \
   sync.cpp \
   threadinterrupt.cpp \
   util.cpp \
+  forkutil.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
   utiltime.cpp \

@@ -944,8 +944,3 @@ void SetThreadPriority(int nPriority)
 #endif // PRIO_THREAD
 #endif // WIN32
 }
-
-bool IsBlockX16R(int blockHeight)
-{
-    return blockHeight < SCRYPT2_THRESHOLD;
-}

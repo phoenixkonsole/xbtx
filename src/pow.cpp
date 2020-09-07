@@ -17,7 +17,12 @@
 
 bool IsScrypt2ForkBlocks(const int nLastBlockHeight)
 {
-    return nLastBlockHeight > SCRYPT2_THRESHOLD && nLastBlockHeight < SCRYPT2_THRESHOLD + 5;
+    return nLastBlockHeight >= SCRYPT2_THRESHOLD && nLastBlockHeight < SCRYPT2_THRESHOLD + 3;
+}
+
+bool IsScrypt2AdjustmentBlocks(const int nLastBlockHeight)
+{
+    return nLastBlockHeight >= SCRYPT2_THRESHOLD + 3 && nLastBlockHeight < SCRYPT2_THRESHOLD + 50;
 }
 
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
@@ -30,7 +35,11 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
 
     // Set low difficulty for first blocks after switching to scrypt^2 algorithm
     if (IsScrypt2ForkBlocks(pindexLast->nHeight)) {
-        arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 11);
+        arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 1);
+        return scrypt2MinDifficulty.GetCompact();
+    }
+    if (IsScrypt2AdjustmentBlocks(pindexLast->nHeight)) {
+        arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 8);
         return scrypt2MinDifficulty.GetCompact();
     }
 
