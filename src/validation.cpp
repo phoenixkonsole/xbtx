@@ -1173,11 +1173,13 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
-    if (block.GetMinedHash(pindex->nHeight) != pindex->GetBlockHash() && 
-        block.GetHash() != pindex->GetBlockHash())
-        return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s (height: %i) at %s %s %s %s %s",
-                pindex->ToString(), pindex->nHeight, pindex->GetBlockPos().ToString(), pindex->ToString()
-                , block.GetHash().ToString(), block.GetMinedHash(pindex->nHeight).ToString(), block.GetBlockHash(pindex->nHeight).ToString());
+
+//  Assume local work has already been checked to save reindexing time
+   // if (block.GetMinedHash(pindex->nHeight) != pindex->GetBlockHash() && 
+   //     block.GetHash() != pindex->GetBlockHash())
+   //     return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s (height: %i) at %s %s %s %s %s",
+   //             pindex->ToString(), pindex->nHeight, pindex->GetBlockPos().ToString(), pindex->ToString()
+   //             , block.GetHash().ToString(), block.GetMinedHash(pindex->nHeight).ToString(), block.GetBlockHash(pindex->nHeight).ToString());
     return true;
 }
 
