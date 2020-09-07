@@ -20,6 +20,7 @@
 #include "sync.h"
 #include "tinyformat.h"
 #include "utiltime.h"
+#include "forkutil.h"
 
 #include <atomic>
 #include <exception>
@@ -358,8 +359,5 @@ void TraceThread(const char *name, Callable func)
 std::string CopyrightHolders(const std::string &strPrefix);
 
 void SetThreadPriority(int nPriority);
-
-static const int SCRYPT2_THRESHOLD = 667000;
-bool IsBlockX16R(int blockHeight);
 
 #endif // BitcoinSubsidium_UTIL_H

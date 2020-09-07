@@ -1145,7 +1145,7 @@ static bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMes
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const int nHeight, const Consensus::Params& consensusParams)
 {
     block.SetNull();
 
@@ -1163,8 +1163,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    uint256 blockHash = (chainActive.Tip() == nullptr || IsBlockX16R(chainActive.Tip()->nHeight)) ? block.GetHash() : block.GetWorkHash();
-    if (!CheckProofOfWork(blockHash, block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetBlockHash(nHeight), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1172,11 +1171,11 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
 
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
 {
-    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams))
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
-    if (block.GetHash() != pindex->GetBlockHash())
-        return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
-                pindex->ToString(), pindex->GetBlockPos().ToString());
+    if (block.GetBlockHash(pindex->nHeight) != pindex->GetBlockHash())
+        return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s (height: %i) at %s",
+                pindex->ToString(), pindex->nHeight, pindex->GetBlockPos().ToString());
     return true;
 }
 
@@ -1692,7 +1691,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* 
     }
 
     std::vector<std::pair<std::string, CBlockAssetUndo> > vUndoData;
-    if (!passetsdb->ReadBlockUndoAssetData(block.GetHash(), vUndoData)) {
+    if (!passetsdb->ReadBlockUndoAssetData(block.GetBlockHash(pindex->nHeight), vUndoData)) {
         error("DisconnectBlock(): block asset undo data inconsistent");
         return DISCONNECT_FAILED;
     }
@@ -2115,7 +2114,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     assert(pindex);
     // pindex->phashBlock can be null if called by CreateNewBlock/TestBlockValidity
     assert((pindex->phashBlock == nullptr) ||
-           (*pindex->phashBlock == block.GetHash()));
+           (*pindex->phashBlock == block.GetNextBlockHash()));
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
@@ -2129,7 +2128,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
-    if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
+    if (block.GetTipHash() == chainparams.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
@@ -2508,7 +2507,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         std::pair<std::string, CBlockAssetUndo>* undoAssetData = &undoPair;
         /** XBTX END */
 
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetHash(), assetsCache, undoAssetData);
+        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetTipHash(), assetsCache, undoAssetData);
 
         /** XBTX START */
         if (!undoAssetData->first.empty()) {
@@ -2553,7 +2552,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         }
 
         if (vUndoAssetData.size()) {
-            if (!passetsdb->WriteBlockUndoAssetData(block.GetHash(), vUndoAssetData))
+            if (!passetsdb->WriteBlockUndoAssetData(block.GetTipHash(), vUndoAssetData))
                 return AbortNode(state, "Failed to write asset undo data");
         }
 
@@ -3305,7 +3304,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
 
             bool fInvalidFound = false;
             std::shared_ptr<const CBlock> nullBlockPtr;
-            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace))
+            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetTipHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace))
                 return false;
 
             if (fInvalidFound) {
@@ -3455,7 +3454,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 static CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
 {
     // Check for duplicate
-    uint256 hash = block.GetHash();
+    uint256 hash = block.GetTipHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
     if (it != mapBlockIndex.end())
         return it->second;
@@ -3956,7 +3955,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 {
     AssertLockHeld(cs_main);
     // Check for duplicate
-    uint256 hash = block.GetHash();
+    uint256 hash = block.GetTipHash();
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = nullptr;
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
@@ -4966,7 +4965,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 nRewind = blkdat.GetPos();
 
                 // detect out of order blocks, and store them for later
-                uint256 hash = block.GetHash();
+                uint256 hash = block.GetTipHash();
                 if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
                     LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                             block.hashPrevBlock.ToString());
@@ -5008,7 +5007,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     while (range.first != range.second) {
                         std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (ReadBlockFromDisk(*pblockrecursive, it->second, chainparams.GetConsensus()))
+                        if (ReadBlockFromDisk(*pblockrecursive, it->second, nCurrentHeight + 1, chainparams.GetConsensus()))
                         {
                             LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
@@ -5017,7 +5016,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                             if (AcceptBlock(pblockrecursive, dummy, chainparams, nullptr, true, &it->second, nullptr))
                             {
                                 nLoaded++;
-                                queue.push_back(pblockrecursive->GetHash());
+                                queue.push_back(pblockrecursive->GetNextBlockHash());
                             }
                         }
                         range.first++;

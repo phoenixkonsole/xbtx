@@ -62,6 +62,10 @@ public:
     }
 
     uint256 GetHash() const;
+    uint256 GetSerializeHash() const;
+    uint256 GetTipHash() const;
+    uint256 GetBlockHash(const int nHeight) const;
+    uint256 GetNextBlockHash() const;
     uint256 GetWorkHash() const;
 
     int64_t GetBlockTime() const

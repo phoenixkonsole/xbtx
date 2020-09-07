@@ -819,7 +819,7 @@ void PeerLogicValidation::NewPoWValidBlock(const CBlockIndex *pindex, const std:
     nHighestFastAnnounce = pindex->nHeight;
 
     bool fWitnessEnabled = IsWitnessEnabled(pindex->pprev, Params().GetConsensus());
-    uint256 hashBlock(pblock->GetHash());
+    uint256 hashBlock(pblock->GetTipHash());
 
     {
         LOCK(cs_most_recent_block);
@@ -882,7 +882,7 @@ void PeerLogicValidation::UpdatedBlockTip(const CBlockIndex *pindexNew, const CB
 void PeerLogicValidation::BlockChecked(const CBlock& block, const CValidationState& state) {
     LOCK(cs_main);
 
-    const uint256 hash(block.GetHash());
+    const uint256 hash(block.GetTipHash());
     std::map<uint256, std::pair<NodeId, bool>>::iterator it = mapBlockSource.find(hash);
 
     int nDoS = 0;
@@ -1067,7 +1067,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 if (send && (mi->second->nStatus & BLOCK_HAVE_DATA))
                 {
                     std::shared_ptr<const CBlock> pblock;
-                    if (a_recent_block && a_recent_block->GetHash() == (*mi).second->GetBlockHash()) {
+                    if (a_recent_block && a_recent_block->GetTipHash() == (*mi).second->GetBlockHash()) {
                         pblock = a_recent_block;
                     } else {
                         // Send block from disk
@@ -2287,7 +2287,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // block that is in flight from some other peer.
             {
                 LOCK(cs_main);
-                mapBlockSource.emplace(pblock->GetHash(), std::make_pair(pfrom->GetId(), false));
+                mapBlockSource.emplace(pblock->GetTipHash(), std::make_pair(pfrom->GetId(), false));
             }
             bool fNewBlock = false;
             // Setting fForceProcessing to true means that we bypass some of
@@ -2304,7 +2304,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 pfrom->nLastBlockTime = GetTime();
             } else {
                 LOCK(cs_main);
-                mapBlockSource.erase(pblock->GetHash());
+                mapBlockSource.erase(pblock->GetTipHash());
             }
             LOCK(cs_main); // hold cs_main for CBlockIndex::IsValid()
             if (pindex->IsValid(BLOCK_VALID_TRANSACTIONS)) {
@@ -2312,7 +2312,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // process from some other peer.  We do this after calling
                 // ProcessNewBlock so that a malleated cmpctblock announcement
                 // can't be used to interfere with block relay.
-                MarkBlockAsReceived(pblock->GetHash());
+                MarkBlockAsReceived(pblock->GetTipHash());
             }
         }
 
@@ -2388,7 +2388,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 pfrom->nLastBlockTime = GetTime();
             } else {
                 LOCK(cs_main);
-                mapBlockSource.erase(pblock->GetHash());
+                mapBlockSource.erase(pblock->GetTipHash());
             }
         }
     }
@@ -2581,14 +2581,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
         vRecv >> *pblock;
 
-        LogPrint(BCLog::NET, "received block %s peer=%d\n", pblock->GetHash().ToString(), pfrom->GetId());
+        LogPrint(BCLog::NET, "received block %s peer=%d\n", pblock->GetTipHash().ToString(), pfrom->GetId());
 
         // Process all blocks from whitelisted peers, even if not requested,
         // unless we're still syncing with the network.
         // Such an unrequested block may still be processed, subject to the
         // conditions in AcceptBlock().
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
-        const uint256 hash(pblock->GetHash());
+        const uint256 hash(pblock->GetTipHash());
         {
             LOCK(cs_main);
             // Also always process if we requested the block explicitly, as we may
@@ -2604,7 +2604,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             pfrom->nLastBlockTime = GetTime();
         } else {
             LOCK(cs_main);
-            mapBlockSource.erase(pblock->GetHash());
+            mapBlockSource.erase(pblock->GetTipHash());
         }
     }
 
