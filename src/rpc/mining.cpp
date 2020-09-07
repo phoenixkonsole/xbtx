@@ -123,6 +123,7 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
+        nCurrentHeight = nHeight;
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
@@ -131,17 +132,9 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        if (IsBlockX16R(chainActive.Height())) {
-            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-                ++pblock->nNonce;
-                --nMaxTries;
-            }
-        }
-        else {
-            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetWorkHash(), pblock->nBits, Params().GetConsensus())) {
-                ++pblock->nNonce;
-                --nMaxTries;
-            }
+        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetMinedHash(nHeight + 1), pblock->nBits, Params().GetConsensus())) {
+            ++pblock->nNonce;
+            --nMaxTries;
         }
         if (nMaxTries == 0) {
             break;
@@ -153,7 +146,7 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         ++nHeight;
-        blockHashes.push_back(pblock->GetBlockHash(nHeight).GetHex());
+        blockHashes.push_back(pblock->GetMinedHash(nHeight).GetHex());
 
         //mark script as important because it was used at least for one coinbase output if the script came from the wallet
         if (keepScript)

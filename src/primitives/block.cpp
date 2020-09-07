@@ -51,6 +51,19 @@ uint256 CBlockHeader::GetWorkHash() const
     return thash;
 }
 
+uint256 CBlockHeader::GetMinedHash(const int nHeight) const
+{
+    if (IsBlockX16R(nHeight)) {
+        return GetHash();
+    }
+    return GetWorkHash();
+}
+
+uint256 CBlockHeader::GetNextMinedHash() const
+{
+    return GetMinedHash(nCurrentHeight + 1);
+}
+
 std::string CBlock::ToString() const
 {
     std::stringstream s;

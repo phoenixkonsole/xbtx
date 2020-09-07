@@ -420,11 +420,7 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
-        if (IsBlockX16R(nHeight)) {
-            return block.GetHash();
-        } else {
-            return block.GetSerializeHash();
-        }
+        return block.GetBlockHash(nHeight);
     }
 
 
