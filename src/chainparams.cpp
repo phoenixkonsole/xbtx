@@ -176,7 +176,7 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("000000a1344be5a436d588e91f65251146038a17fe9d1f9903cac938bdade931"));
         assert(genesis.hashMerkleRoot == uint256S("c308feaa5e1bce0f9b483e14fb20a47dc1d849fac1b660fdaffc461b34df10a5"));
 
-        vSeeds.emplace_back("176.9.64.121", false);
+        vSeeds.emplace_back("195.201.85.185:53016", false);
         vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.com", false);
         vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.org", false);
 

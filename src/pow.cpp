@@ -25,12 +25,18 @@ bool IsScrypt2AdjustmentBlocks(const int nLastBlockHeight)
     return nLastBlockHeight >= SCRYPT2_THRESHOLD + 3 && nLastBlockHeight < SCRYPT2_THRESHOLD + 50;
 }
 
+bool IsScrypt2SecondAdjustment(const int nLastBlockHeight)
+{
+    const int adjustmentBlock = 668075;
+    return nLastBlockHeight >= adjustmentBlock && nLastBlockHeight < adjustmentBlock + 190;
+}
+
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
     /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
     assert(pindexLast != nullptr);
     
-    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+    unsigned int nProofOfWorkLimit = bnPowLimit.GetCompact();
     int64_t nPastBlocks = 180; // ~3hr
 
     // Set low difficulty for first blocks after switching to scrypt^2 algorithm
@@ -41,6 +47,9 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     if (IsScrypt2AdjustmentBlocks(pindexLast->nHeight)) {
         arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 8);
         return scrypt2MinDifficulty.GetCompact();
+    }
+    if (IsScrypt2SecondAdjustment(pindexLast->nHeight)) {
+        return 520485300; // ~3min
     }
 
     // make sure we have at least (nPastBlocks + 1) blocks, otherwise just return powLimit
@@ -96,6 +105,23 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     // Retarget
     bnNew *= nActualTimespan;
     bnNew /= nTargetTimespan;
+
+    // new difficulty can be maximum 50 times higher than previous
+    const int maxDifMultiplier = 40;
+    arith_uint256 bnLast = arith_uint256().SetCompact(pindexLast->nBits);
+    if ((bnLast / bnNew) > maxDifMultiplier) {
+        bnNew = bnLast / maxDifMultiplier;
+    }
+
+    // significantly reduce the difficulty if the last timespan is too large
+    const int64_t lastTimespan = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
+    const int timeMultiplier = lastTimespan / params.nPowTargetSpacing;
+    if (timeMultiplier > maxDifMultiplier) {
+        bnLast *= (timeMultiplier - (maxDifMultiplier / 2));
+        if (bnLast > bnNew) {
+            bnNew = bnLast;
+        }
+    }
 
     if (bnNew > bnPowLimit) {
         bnNew = bnPowLimit;
