@@ -7,6 +7,7 @@
 #ifndef BitcoinSubsidium_PRIMITIVES_BLOCK_H
 #define BitcoinSubsidium_PRIMITIVES_BLOCK_H
 
+#include "forkutil.h"
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
