@@ -176,9 +176,9 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("000000a1344be5a436d588e91f65251146038a17fe9d1f9903cac938bdade931"));
         assert(genesis.hashMerkleRoot == uint256S("c308feaa5e1bce0f9b483e14fb20a47dc1d849fac1b660fdaffc461b34df10a5"));
 
-        vSeeds.emplace_back("195.201.85.185:53016", false);
-        vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.com", false);
-        vSeeds.emplace_back("seed-BitcoinSubsidium.BitcoinSubsidiumcoin.org", false);
+        vSeeds.emplace_back("195.201.85.185", false);
+        vSeeds.emplace_back("195.201.160.231", false);
+        vSeeds.emplace_back("116.202.231.96", false);
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,60);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,122);
