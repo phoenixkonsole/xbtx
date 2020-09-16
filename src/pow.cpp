@@ -26,6 +26,7 @@ bool IsScrypt2AdjustmentBlocks(const int nLastBlockHeight)
 }
 
 const int difficultyAdjustmentBlock = 668075;
+const int multiplierAdjustmentBlock = 668912;
 
 bool IsScrypt2SecondAdjustment(const int nLastBlockHeight)
 {
@@ -107,17 +108,25 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     bnNew *= nActualTimespan;
     bnNew /= nTargetTimespan;
 
+    // adjust difficulty
     if (pindexLast->nHeight >= difficultyAdjustmentBlock) {
-        // new difficulty can be maximum 50 times higher than previous
+        const int64_t lastTimespan = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
+        const int timeMultiplier = lastTimespan / params.nPowTargetSpacing;
+
+        // new difficulty can be maximum 40 times higher than previous
         const int maxDifMultiplier = 40;
         arith_uint256 bnLast = arith_uint256().SetCompact(pindexLast->nBits);
-        if ((bnLast / bnNew) > maxDifMultiplier) {
-            bnNew = bnLast / maxDifMultiplier;
+
+        int difMult = maxDifMultiplier;
+        if (pindexLast->nHeight >= multiplierAdjustmentBlock && timeMultiplier > 1) {
+            difMult /= timeMultiplier;
+        }
+
+        if ((bnLast / bnNew) > difMult) {
+            bnNew = bnLast / difMult;
         }
 
         // significantly reduce the difficulty if the last timespan is too large
-        const int64_t lastTimespan = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
-        const int timeMultiplier = lastTimespan / params.nPowTargetSpacing;
         if (timeMultiplier > maxDifMultiplier) {
             bnLast *= (timeMultiplier - (maxDifMultiplier / 2));
             if (bnLast > bnNew) {
