@@ -122,7 +122,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
             difMult /= timeMultiplier;
         }
 
-        if ((bnLast / bnNew) > difMult) {
+        if (difMult > 0 && (bnLast / bnNew) > difMult) {
             bnNew = bnLast / difMult;
         }
 
