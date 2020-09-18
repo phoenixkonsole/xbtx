@@ -240,6 +240,7 @@ libBitcoinSubsidium_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  forkutil.cpp \
   $(BitcoinSubsidium_CORE_H)
 
 if ENABLE_ZMQ
@@ -418,7 +419,6 @@ libBitcoinSubsidium_util_a_SOURCES = \
   sync.cpp \
   threadinterrupt.cpp \
   util.cpp \
-  forkutil.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
   utiltime.cpp \
