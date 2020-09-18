@@ -376,6 +376,7 @@ libBitcoinSubsidium_consensus_a_SOURCES = \
   uint256.h \
   utilstrencodings.cpp \
   utilstrencodings.h \
+  forkutil.cpp \
   version.h
 
 # common: shared between BitcoinSubsidiumd, and BitcoinSubsidium-qt and non-server tools
