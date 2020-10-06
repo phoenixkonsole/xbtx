@@ -3629,25 +3629,25 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    /*
-     *
-     *   Header verification takes a long time due to having to compute scrypt hashes.
-     * This is a lengthy process, and so for this reason we skip it. This is acceptable
-     * since we're going to run a full validation of each and every block in the chain
-     * once the full data set is received.
-     *
-     */
-
-    return true;
-}
-
-static bool CheckBlockHeaderWorkHash(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
-{
-    // Check proof of work matches claimed amount
-    if (!IsBlockchainX16R() && fCheckPOW && 
-        (!CheckProofOfWork(block.GetNextMinedHash(), block.nBits, consensusParams) ||
-         !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams) )) 
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetNextMinedHash().ToString() + " proof of work failed " + block.GetWorkHash().ToString());
+    if (fCheckPOW && pindexBestHeader != nullptr)
+    {
+        if (IsPeriodX16R(consensusParams, pindexBestHeader->nHeight + 1))
+        {
+            if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
+            }
+        }
+        else if (IsPeriodScrypt2(consensusParams, pindexBestHeader->nHeight + 1))
+        {
+            if (block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2) {
+                return state.DoS(50, false, REJECT_INVALID, "block-version", false, std::to_string(block.nVersion) + " block version failed ");
+            }
+            if (!CheckProofOfWork(block.GetNextMinedHash(), block.nBits, consensusParams))  {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetNextMinedHash().ToString() + " proof of work failed ");
+            }
+        } 
+    }
+    
     return true;
 }
 
@@ -3660,9 +3660,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    //if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
-       // return false;
-    if (!CheckBlockHeaderWorkHash(block, state, consensusParams, fCheckPOW))
+    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
         
     // Check proof of work matches claimed amount
