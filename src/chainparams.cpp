@@ -137,10 +137,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;  //Assets (RIP2)
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1540944000; // Oct 31, 2018
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1572480000; // Oct 31, 2019
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 1599037200;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 1599073200;
-
+        
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
 
@@ -261,10 +258,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 5;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1533924000; // GMT: Friday, August 10, 2018 6:00:00 PM
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1538351999; // GMT: Sunday, September 30, 2018 11:59:59 PM
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 1599037200;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 1599073200;
-
+        
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -436,10 +430,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 999999999999ULL;
-
+        
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
 

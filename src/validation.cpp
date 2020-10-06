@@ -2022,10 +2022,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     /** If the assets are deployed now. We need to use the correct block version */
     if (AreAssetsDeployed())
         nVersion = VERSIONBITS_TOP_BITS_ASSETS;
-        
-    if (AreScrypt2Deployed())
-        nVersion = VERSIONBITS_TOP_BITS_SCRYPT_2;
-
+    
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
         if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
@@ -3849,10 +3846,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
     if (AreAssetsDeployed() && block.nVersion < VERSIONBITS_TOP_BITS_ASSETS)
         return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-    // Reject outdated veresion blocks onces forked to scrypt^2.
-    if (AreScrypt2Deployed() && block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2)
-        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
-
     return true;
 }
 
@@ -5409,17 +5402,6 @@ bool AreAssetsDeployed() {
         fAssetsIsActive = true;
 
     return fAssetsIsActive;
-}
-
-bool AreScrypt2Deployed() {
-    if (fScrypt2IsActive)
-        return true;
-
-    const ThresholdState thresholdState = VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_SCRYPT2);
-    if (thresholdState == THRESHOLD_ACTIVE)
-        fScrypt2IsActive = true;
-
-    return fScrypt2IsActive;
 }
 
 bool IsDGWActive(unsigned int nBlockNumber) {

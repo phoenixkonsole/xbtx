@@ -533,8 +533,6 @@ bool LoadMempool();
 /** RVN START */
 bool AreAssetsDeployed();
 
-bool AreScrypt2Deployed();
-
 bool IsDGWActive(unsigned int nBlockNumber);
 
 CAssetsCache* GetCurrentAssetCache();
