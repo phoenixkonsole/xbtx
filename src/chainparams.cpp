@@ -102,7 +102,6 @@ bool CChainParams::CSVEnabled() const{
 	return consensus.nCSVEnabled;
 }
 
-
 /**
  * Main network
  */
@@ -620,4 +619,33 @@ void TurnOffBIP65() {
 
 void TurnOffBIP66() {
 	globalChainParams->TurnOffBIP66();
+}
+
+
+Consensus::NetworkPeriod GetNetworkPeriodForBlock(Consensus::Params params, int nBlockHeight)
+{
+    int period = 0;
+    for (; period < Consensus::MAX_NETWORK_PERIOD; ++period)
+    {
+        if (nBlockHeight < params.nNetworkPeriod[period])
+        {
+            break;
+        }
+    }
+    return static_cast<Consensus::NetworkPeriod>(--period);
+}
+
+bool IsPeriodX16R(Consensus::Params params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_X16R;
+}
+
+bool IsPeriodMaintence(Consensus::Params params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_MAINTANCE;
+}
+
+bool IsPeriodScrypt2(Consensus::Params params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_SCRYPT2;
 }

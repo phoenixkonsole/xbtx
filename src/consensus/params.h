@@ -23,7 +23,7 @@ enum DeploymentPos
     MAX_VERSION_BITS_DEPLOYMENTS
 };
 
-enum NetworkPeriod
+enum NetworkPeriod : int
 {
     NETWORK_PERIOD_X16R = 0,
     NETWORK_PERIOD_MAINTANCE,
