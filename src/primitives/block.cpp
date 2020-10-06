@@ -11,36 +11,12 @@
 #include "utilstrencodings.h"
 #include "crypto/common.h"
 #include "crypto/scrypt.h"
+#include "chainparams.h"
+#include "versionbits.h"
 
 uint256 CBlockHeader::GetHash() const
 {
     return HashX16R(BEGIN(nVersion), END(nNonce), hashPrevBlock);
-}
-
-uint256 CBlockHeader::GetSerializeHash() const
-{
-    return SerializeHash(*this);
-}
-
-uint256 CBlockHeader::GetTipHash() const
-{
-    if (IsBlockchainX16R()) {
-        return GetHash();
-    }
-    return GetSerializeHash();
-}
-
-uint256 CBlockHeader::GetBlockHash(const int nHeight) const
-{
-    if (IsBlockX16R(nHeight)) {
-        return GetHash();
-    }
-    return GetSerializeHash();
-}
-
-uint256 CBlockHeader::GetNextBlockHash() const
-{
-    return GetBlockHash(nCurrentHeight + 1);
 }
 
 uint256 CBlockHeader::GetWorkHash() const
@@ -50,17 +26,20 @@ uint256 CBlockHeader::GetWorkHash() const
     return thash;
 }
 
-uint256 CBlockHeader::GetMinedHash(const int nHeight) const
+uint256 CBlockHeader::GetMinedHash(const Consensus::Params& params, const int nHeight) const
 {
-    if (IsBlockX16R(nHeight)) {
+    if (IsPeriodX16R(params, nHeight)) {
         return GetHash();
     }
     return GetWorkHash();
 }
 
-uint256 CBlockHeader::GetNextMinedHash() const
+uint256 CBlockHeader::GetMinedHash() const
 {
-    return GetMinedHash(nCurrentHeight + 1);
+    if (nVersion >= VERSIONBITS_TOP_BITS_SCRYPT_2) {
+        return GetWorkHash();
+    }
+    return GetHash();
 }
 
 std::string CBlock::ToString() const

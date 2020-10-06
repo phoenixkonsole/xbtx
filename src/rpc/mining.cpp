@@ -123,7 +123,6 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        nCurrentHeight = nHeight;
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
@@ -132,7 +131,7 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetMinedHash(nHeight + 1), pblock->nBits, Params().GetConsensus())) {
+        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetMinedHash(Params().GetConsensus(), nHeight + 1), pblock->nBits, Params().GetConsensus())) {
             ++pblock->nNonce;
             --nMaxTries;
         }
@@ -146,7 +145,7 @@ UniValue generateBlocks(std::shared_ptr<CReserveScript> coinbaseScript, int nGen
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         ++nHeight;
-        blockHashes.push_back(pblock->GetMinedHash(nHeight).GetHex());
+        blockHashes.push_back(pblock->GetMinedHash(Params().GetConsensus(), nHeight).GetHex());
 
         //mark script as important because it was used at least for one coinbase output if the script came from the wallet
         if (keepScript)
@@ -410,7 +409,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
             CBlockIndex* const pindexPrev = chainActive.Tip();
 
-            uint256 hash = block.GetNextBlockHash();
+            uint256 hash = block.GetMinedHash();
             BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex *pindex = mi->second;
@@ -701,7 +700,7 @@ public:
 
 protected:
     void BlockChecked(const CBlock& block, const CValidationState& stateIn) override {
-        if (block.GetNextBlockHash() != hash)
+        if (block.GetMinedHash() != hash)
             return;
         found = true;
         state = stateIn;
@@ -737,7 +736,7 @@ UniValue submitblock(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
     }
 
-    uint256 hash = block.GetNextBlockHash();
+    uint256 hash = block.GetMinedHash();
     bool fBlockPresent = false;
     {
         LOCK(cs_main);
