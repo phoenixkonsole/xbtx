@@ -23,6 +23,15 @@ enum DeploymentPos
     MAX_VERSION_BITS_DEPLOYMENTS
 };
 
+enum NetworkPeriod
+{
+    NETWORK_PERIOD_X16R = 0,
+    NETWORK_PERIOD_MAINTANCE,
+    NETWORK_PERIOD_SCRYPT2,
+
+    MAX_NETWORK_PERIOD
+};
+
 /**
  * Struct for each individual consensus rule change using BIP9.
  */
@@ -45,6 +54,7 @@ struct Params {
     bool nBIP34Enabled;
     bool nBIP65Enabled;
     bool nBIP66Enabled;
+    int nNetworkPeriod[MAX_NETWORK_PERIOD]; // block number that represents start of network period
     // uint256 BIP34Hash;
     /** Block height at which BIP65 becomes active */
     // int BIP65Height;

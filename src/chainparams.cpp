@@ -137,6 +137,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;  //Assets (RIP2)
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1540944000; // Oct 31, 2018
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1572480000; // Oct 31, 2019
+
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 667956;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 689000;
         
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -259,6 +263,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1533924000; // GMT: Friday, August 10, 2018 6:00:00 PM
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1538351999; // GMT: Sunday, September 30, 2018 11:59:59 PM
         
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 100;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 200;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -431,6 +438,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 999999999999ULL;
         
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 10;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 20;
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
 
