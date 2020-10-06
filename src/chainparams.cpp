@@ -622,7 +622,7 @@ void TurnOffBIP66() {
 }
 
 
-Consensus::NetworkPeriod GetNetworkPeriodForBlock(Consensus::Params params, int nBlockHeight)
+Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight)
 {
     int period = 0;
     for (; period < Consensus::MAX_NETWORK_PERIOD; ++period)
@@ -635,17 +635,17 @@ Consensus::NetworkPeriod GetNetworkPeriodForBlock(Consensus::Params params, int 
     return static_cast<Consensus::NetworkPeriod>(--period);
 }
 
-bool IsPeriodX16R(Consensus::Params params, int nBlockHeight)
+bool IsPeriodX16R(const Consensus::Params& params, int nBlockHeight)
 {
     return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_X16R;
 }
 
-bool IsPeriodMaintence(Consensus::Params params, int nBlockHeight)
+bool IsPeriodMaintence(const Consensus::Params& params, int nBlockHeight)
 {
     return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_MAINTANCE;
 }
 
-bool IsPeriodScrypt2(Consensus::Params params, int nBlockHeight)
+bool IsPeriodScrypt2(const Consensus::Params& params, int nBlockHeight)
 {
     return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_SCRYPT2;
 }
