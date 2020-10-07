@@ -72,8 +72,6 @@ public:
     uint256 GetWorkHash() const;
     // returns hash for PoW check by block height
     uint256 GetMinedHash(const Consensus::Params& params, const int nHeight) const;
-    // returns hash for PoW check by block version
-    uint256 GetMinedHash() const;
 
     int64_t GetBlockTime() const
     {

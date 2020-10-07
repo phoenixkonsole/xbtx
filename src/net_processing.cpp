@@ -1115,7 +1115,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         bool fPeerWantsWitness = State(pfrom->GetId())->fWantsCmpctWitness;
                         int nSendFlags = fPeerWantsWitness ? 0 : SERIALIZE_TRANSACTION_NO_WITNESS;
                         if (CanDirectFetch(consensusParams) && mi->second->nHeight >= chainActive.Height() - MAX_CMPCTBLOCK_DEPTH) {
-                            if ((fPeerWantsWitness || !fWitnessesPresentInARecentCompactBlock) && a_recent_compact_block && a_recent_compact_block->header.GetMinedHash() == mi->second->GetBlockHash()) {
+                            if ((fPeerWantsWitness || !fWitnessesPresentInARecentCompactBlock) && a_recent_compact_block && a_recent_compact_block->header.GetHash() == mi->second->GetBlockHash()) {
                                 connman->PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::CMPCTBLOCK, *a_recent_compact_block));
                             } else {
                                 CBlockHeaderAndShortTxIDs cmpctblock(*pblock, fPeerWantsWitness);
@@ -2433,14 +2433,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             nodestate->nUnconnectingHeaders++;
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), uint256()));
             LogPrint(BCLog::NET, "received header %s: missing prev block %s, sending getheaders (%d) to end (peer=%d, nUnconnectingHeaders=%d)\n",
-                    headers[0].GetMinedHash().ToString(),
+                    headers[0].GetHash().ToString(),
                     headers[0].hashPrevBlock.ToString(),
                     pindexBestHeader->nHeight,
                     pfrom->GetId(), nodestate->nUnconnectingHeaders);
             // Set hashLastUnknownBlock for this peer, so that if we
             // eventually get the headers - even from a different peer -
             // we can use this peer to download.
-            UpdateBlockAvailability(pfrom->GetId(), headers.back().GetMinedHash());
+            UpdateBlockAvailability(pfrom->GetId(), headers.back().GetHash());
 
             if (nodestate->nUnconnectingHeaders % MAX_UNCONNECTING_HEADERS == 0) {
                 Misbehaving(pfrom->GetId(), 20);
@@ -2454,7 +2454,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 Misbehaving(pfrom->GetId(), 20);
                 return error("non-continuous headers sequence");
             }
-            hashLastBlock = header.GetMinedHash();
+            hashLastBlock = header.GetHash();
         }
         }
 

@@ -1083,7 +1083,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
             } catch (const std::exception& e) {
                 return error("%s: Deserialize or I/O error - %s", __func__, e.what());
             }
-            hashBlock = header.GetMinedHash();
+            hashBlock = header.GetHash();
             if (txOut->GetHash() != hash)
                 return error("%s: txid mismatch", __func__);
             return true;
@@ -2016,7 +2016,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     if (AreAssetsDeployed())
         nVersion = VERSIONBITS_TOP_BITS_ASSETS;
 
-    if (IsPeriodScrypt2(params, pindexPrev->nHeight + 1))
+    if (pindexPrev && IsPeriodScrypt2(params, pindexPrev->nHeight + 1))
         nVersion = VERSIONBITS_TOP_BITS_SCRYPT_2;
     
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
@@ -3451,7 +3451,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 static CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
 {
     // Check for duplicate
-    uint256 hash = block.GetMinedHash();
+    uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
     if (it != mapBlockIndex.end())
         return it->second;
@@ -3621,21 +3621,28 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    if (fCheckPOW && pindexBestHeader != nullptr)
+    // Check header only on recieving blocks
+    return true;
+}
+
+static bool CheckWorkBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+{
+    CBlockIndex* pindexPrev = chainActive.Tip();
+    if (fCheckPOW && pindexPrev != nullptr)
     {
-        if (IsPeriodX16R(consensusParams, pindexBestHeader->nHeight + 1))
+        if (IsPeriodX16R(consensusParams, pindexPrev->nHeight + 1))
         {
             if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
                 return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
             }
         }
-        else if (IsPeriodScrypt2(consensusParams, pindexBestHeader->nHeight + 1))
+        else if (IsPeriodScrypt2(consensusParams, pindexPrev->nHeight + 1))
         {
             if (block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2) {
-                return state.DoS(50, false, REJECT_INVALID, "block-version", false, std::to_string(block.nVersion) + " block version failed ");
+                return state.DoS(50, false, REJECT_INVALID, "block-version", false, block.GetHash().ToString() + " block version failed ");
             }
-            if (!CheckProofOfWork(block.GetMinedHash(), block.nBits, consensusParams))  {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetMinedHash().ToString() + " proof of work failed ");
+            if (!CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams))  {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
             }
         } 
     }
@@ -3652,7 +3659,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
+    if (!CheckWorkBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
         
     // Check proof of work matches claimed amount

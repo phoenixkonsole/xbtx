@@ -12,7 +12,6 @@
 #include "crypto/common.h"
 #include "crypto/scrypt.h"
 #include "chainparams.h"
-#include "versionbits.h"
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -32,14 +31,6 @@ uint256 CBlockHeader::GetMinedHash(const Consensus::Params& params, const int nH
         return GetHash();
     }
     return GetWorkHash();
-}
-
-uint256 CBlockHeader::GetMinedHash() const
-{
-    if (nVersion >= VERSIONBITS_TOP_BITS_SCRYPT_2) {
-        return GetWorkHash();
-    }
-    return GetHash();
 }
 
 std::string CBlock::ToString() const

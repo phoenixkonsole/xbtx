@@ -409,7 +409,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
             CBlockIndex* const pindexPrev = chainActive.Tip();
 
-            uint256 hash = block.GetMinedHash();
+            uint256 hash = block.GetHash();
             BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex *pindex = mi->second;
@@ -700,7 +700,7 @@ public:
 
 protected:
     void BlockChecked(const CBlock& block, const CValidationState& stateIn) override {
-        if (block.GetMinedHash() != hash)
+        if (block.GetHash() != hash)
             return;
         found = true;
         state = stateIn;
@@ -736,7 +736,7 @@ UniValue submitblock(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
     }
 
-    uint256 hash = block.GetMinedHash();
+    uint256 hash = block.GetHash();
     bool fBlockPresent = false;
     {
         LOCK(cs_main);
