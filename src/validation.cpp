@@ -3625,24 +3625,32 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
     return true;
 }
 
-static bool CheckWorkBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+static bool ValidateBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    CBlockIndex* pindexPrev = chainActive.Tip();
-    if (fCheckPOW && pindexPrev != nullptr)
+    if (fCheckPOW)
     {
-        if (IsPeriodX16R(consensusParams, pindexPrev->nHeight + 1))
+        auto hash = block.GetHash();
+        BlockMap::iterator mi = mapBlockIndex.find(hash);
+        if (mi == mapBlockIndex.end() || mi->second == nullptr)
         {
-            if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
+            return state.DoS(50, false, REJECT_INVALID, "invalid-hash", false, hash.ToString() + " block is not in index ");
+        }
+
+        CBlockIndex* pindex = mi->second;
+
+        if (IsPeriodX16R(consensusParams, pindex->nHeight))
+        {
+            if (!CheckProofOfWork(hash, block.nBits, consensusParams)) {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, hash.ToString() + " proof of work failed ");
             }
         }
-        else if (IsPeriodScrypt2(consensusParams, pindexPrev->nHeight + 1))
+        else if (IsPeriodScrypt2(consensusParams, pindex->nHeight))
         {
             if (block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2) {
-                return state.DoS(50, false, REJECT_INVALID, "block-version", false, block.GetHash().ToString() + " block version failed ");
+                return state.DoS(50, false, REJECT_INVALID, "block-version", false, hash.ToString() + " block version failed ");
             }
             if (!CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams))  {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, hash.ToString() + " proof of work failed ");
             }
         } 
     }
@@ -3659,7 +3667,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckWorkBlockHeader(block, state, consensusParams, fCheckPOW))
+    if (!ValidateBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
         
     // Check proof of work matches claimed amount
@@ -5007,7 +5015,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                         const int height = pindexBestHeader ? pindexBestHeader->nHeight + 1 : 0;
                         if (ReadBlockFromDisk(*pblockrecursive, it->second, height, chainparams.GetConsensus()))
                         {
-                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetMinedHash(chainparams.GetConsensus(), height).ToString(),
+                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
                             LOCK(cs_main);
                             CValidationState dummy;

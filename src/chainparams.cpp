@@ -624,15 +624,14 @@ void TurnOffBIP66() {
 
 Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight)
 {
-    int period = 0;
-    for (; period < Consensus::MAX_NETWORK_PERIOD; ++period)
+    for (int i = Consensus::CURRENT_NETWORK_PERIOD; i > Consensus::NETWORK_PERIOD_X16R; --i)
     {
-        if (nBlockHeight < params.nNetworkPeriod[period])
+        if (nBlockHeight >= params.nNetworkPeriod[i])
         {
-            break;
+            return static_cast<Consensus::NetworkPeriod>(i);
         }
     }
-    return static_cast<Consensus::NetworkPeriod>(--period);
+    return Consensus::NETWORK_PERIOD_X16R;
 }
 
 bool IsPeriodX16R(const Consensus::Params& params, int nBlockHeight)

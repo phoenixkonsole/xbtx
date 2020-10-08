@@ -19,10 +19,6 @@
  * of the block.
  */
 
-namespace Consensus {
-    struct Params;
-}
-
 class CBlockHeader
 {
 public:
@@ -70,8 +66,6 @@ public:
     uint256 GetHash() const;
     // scrypt2 hash
     uint256 GetWorkHash() const;
-    // returns hash for PoW check by block height
-    uint256 GetMinedHash(const Consensus::Params& params, const int nHeight) const;
 
     int64_t GetBlockTime() const
     {

@@ -2175,7 +2175,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // We requested this block for some reason, but our mempool will probably be useless
                 // so we just grab the block via normal getdata
                 std::vector<CInv> vInv(1);
-                vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetMinedHash(chainparams.GetConsensus(), pindex->nHeight));
+                vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetHash());
                 connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
             }
             return true;
@@ -2219,7 +2219,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 } else if (status == READ_STATUS_FAILED) {
                     // Duplicate txindexes, the block is now in-flight, so just request it
                     std::vector<CInv> vInv(1);
-                    vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetMinedHash(chainparams.GetConsensus(), pindex->nHeight));
+                    vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetHash());
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
                     return true;
                 }
@@ -2232,7 +2232,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if (req.indexes.empty()) {
                     // Dirty hack to jump to BLOCKTXN code (TODO: move message handling into their own functions)
                     BlockTransactions txn;
-                    txn.blockhash = cmpctblock.header.GetMinedHash(chainparams.GetConsensus(), pindex->nHeight);
+                    txn.blockhash = cmpctblock.header.GetHash();
                     blockTxnMsg << txn;
                     fProcessBLOCKTXN = true;
                 } else {
@@ -2262,7 +2262,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // We requested this block, but its far into the future, so our
                 // mempool will probably be useless - request the block normally
                 std::vector<CInv> vInv(1);
-                vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetMinedHash(chainparams.GetConsensus(), pindex->nHeight));
+                vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(pfrom), cmpctblock.header.GetHash());
                 connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
                 return true;
             } else {

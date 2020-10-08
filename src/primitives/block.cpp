@@ -11,7 +11,6 @@
 #include "utilstrencodings.h"
 #include "crypto/common.h"
 #include "crypto/scrypt.h"
-#include "chainparams.h"
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -23,14 +22,6 @@ uint256 CBlockHeader::GetWorkHash() const
     uint256 thash;
     scryptHash(BEGIN(nVersion), BEGIN(thash));
     return thash;
-}
-
-uint256 CBlockHeader::GetMinedHash(const Consensus::Params& params, const int nHeight) const
-{
-    if (IsPeriodX16R(params, nHeight)) {
-        return GetHash();
-    }
-    return GetWorkHash();
 }
 
 std::string CBlock::ToString() const
