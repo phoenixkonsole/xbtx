@@ -139,7 +139,7 @@ public:
 
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 667956;
-        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 689000;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 692000;
         
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
