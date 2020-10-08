@@ -3625,32 +3625,45 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
     return true;
 }
 
+int GetBlockHeightFromIndex(const CBlockHeader& block)
+{
+    if (block.hashPrevBlock == uint256())
+    {
+        return 0;
+    }
+
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi == mapBlockIndex.end() || mi->second == nullptr)
+    {
+        return -1;
+    }
+
+    return mi->second->nHeight + 1;
+}
+
 static bool ValidateBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     if (fCheckPOW)
     {
-        auto hash = block.GetHash();
-        BlockMap::iterator mi = mapBlockIndex.find(hash);
-        if (mi == mapBlockIndex.end() || mi->second == nullptr)
+        const int height = GetBlockHeightFromIndex(block);
+        if (height < 0)
         {
-            return state.DoS(50, false, REJECT_INVALID, "invalid-hash", false, hash.ToString() + " block is not in index ");
+            return state.DoS(50, false, REJECT_INVALID, "invalid-hash", false, block.hashPrevBlock.ToString() + " block is not in index ");
         }
 
-        CBlockIndex* pindex = mi->second;
-
-        if (IsPeriodX16R(consensusParams, pindex->nHeight))
+        if (IsPeriodX16R(consensusParams, height))
         {
-            if (!CheckProofOfWork(hash, block.nBits, consensusParams)) {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, hash.ToString() + " proof of work failed ");
+            if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
             }
         }
-        else if (IsPeriodScrypt2(consensusParams, pindex->nHeight))
+        else if (IsPeriodScrypt2(consensusParams, height))
         {
             if (block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2) {
-                return state.DoS(50, false, REJECT_INVALID, "block-version", false, hash.ToString() + " block version failed ");
+                return state.DoS(50, false, REJECT_INVALID, "block-version", false, block.GetHash().ToString() + " block version failed ");
             }
             if (!CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams))  {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, hash.ToString() + " proof of work failed ");
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
             }
         } 
     }
