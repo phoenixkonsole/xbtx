@@ -1083,7 +1083,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
             } catch (const std::exception& e) {
                 return error("%s: Deserialize or I/O error - %s", __func__, e.what());
             }
-            hashBlock = header.GetNextMinedHash();
+            hashBlock = header.GetHash();
             if (txOut->GetHash() != hash)
                 return error("%s: txid mismatch", __func__);
             return true;
@@ -1162,9 +1162,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const int nHeigh
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
-    // Check the header || Assume local work has already been checked to save reindexing time
-   // if (!CheckProofOfWork(block.GetMinedHash(nHeight), block.nBits, consensusParams))
-    //    return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    // Assume local work has already been checked to save reindexing time
 
     return true;
 }
@@ -1175,11 +1173,6 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
         return false;
 
 //  Assume local work has already been checked to save reindexing time
-   // if (block.GetMinedHash(pindex->nHeight) != pindex->GetBlockHash() && 
-   //     block.GetHash() != pindex->GetBlockHash())
-   //     return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s (height: %i) at %s %s %s %s %s",
-   //             pindex->ToString(), pindex->nHeight, pindex->GetBlockPos().ToString(), pindex->ToString()
-   //             , block.GetHash().ToString(), block.GetMinedHash(pindex->nHeight).ToString(), block.GetBlockHash(pindex->nHeight).ToString());
     return true;
 }
 
@@ -1695,7 +1688,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* 
     }
 
     std::vector<std::pair<std::string, CBlockAssetUndo> > vUndoData;
-    if (!passetsdb->ReadBlockUndoAssetData(block.GetBlockHash(pindex->nHeight), vUndoData)) {
+    if (!passetsdb->ReadBlockUndoAssetData(block.GetHash(), vUndoData)) {
         error("DisconnectBlock(): block asset undo data inconsistent");
         return DISCONNECT_FAILED;
     }
@@ -2022,10 +2015,10 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     /** If the assets are deployed now. We need to use the correct block version */
     if (AreAssetsDeployed())
         nVersion = VERSIONBITS_TOP_BITS_ASSETS;
-        
-    if (AreScrypt2Deployed())
-        nVersion = VERSIONBITS_TOP_BITS_SCRYPT_2;
 
+    if (pindexPrev && IsPeriodScrypt2(params, pindexPrev->nHeight + 1))
+        nVersion = VERSIONBITS_TOP_BITS_SCRYPT_2;
+    
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
         if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
@@ -2118,8 +2111,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     assert(pindex);
     // pindex->phashBlock can be null if called by CreateNewBlock/TestBlockValidity
     assert((pindex->phashBlock == nullptr) ||
-           (*pindex->phashBlock == block.GetHash()) || 
-           (*pindex->phashBlock == block.GetMinedHash(pindex->nHeight)));
+           (*pindex->phashBlock == block.GetHash()));
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
@@ -2133,7 +2125,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
-    if (block.GetBlockHash(pindex->nHeight) == chainparams.GetConsensus().hashGenesisBlock) {
+    if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
@@ -2512,7 +2504,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         std::pair<std::string, CBlockAssetUndo>* undoAssetData = &undoPair;
         /** XBTX END */
 
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetBlockHash(pindex->nHeight), assetsCache, undoAssetData);
+        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, block.GetHash(), assetsCache, undoAssetData);
 
         /** XBTX START */
         if (!undoAssetData->first.empty()) {
@@ -2557,7 +2549,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
         }
 
         if (vUndoAssetData.size()) {
-            if (!passetsdb->WriteBlockUndoAssetData(block.GetBlockHash(pindex->nHeight), vUndoAssetData))
+            if (!passetsdb->WriteBlockUndoAssetData(block.GetHash(), vUndoAssetData))
                 return AbortNode(state, "Failed to write asset undo data");
         }
 
@@ -3309,7 +3301,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
 
             bool fInvalidFound = false;
             std::shared_ptr<const CBlock> nullBlockPtr;
-            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetTipHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace))
+            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace))
                 return false;
 
             if (fInvalidFound) {
@@ -3459,7 +3451,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 static CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
 {
     // Check for duplicate
-    uint256 hash = block.GetNextMinedHash();
+    uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
     if (it != mapBlockIndex.end())
         return it->second;
@@ -3629,25 +3621,53 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    /*
-     *
-     *   Header verification takes a long time due to having to compute scrypt hashes.
-     * This is a lengthy process, and so for this reason we skip it. This is acceptable
-     * since we're going to run a full validation of each and every block in the chain
-     * once the full data set is received.
-     *
-     */
-
+    // Check header only on recieving blocks
     return true;
 }
 
-static bool CheckBlockHeaderWorkHash(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+int GetBlockHeightFromIndex(const CBlockHeader& block)
 {
-    // Check proof of work matches claimed amount
-    if (!IsBlockchainX16R() && fCheckPOW && 
-        (!CheckProofOfWork(block.GetNextMinedHash(), block.nBits, consensusParams) ||
-         !CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams) )) 
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetNextMinedHash().ToString() + " proof of work failed " + block.GetWorkHash().ToString());
+    if (block.hashPrevBlock == uint256())
+    {
+        return 0;
+    }
+
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi == mapBlockIndex.end() || mi->second == nullptr)
+    {
+        return -1;
+    }
+
+    return mi->second->nHeight + 1;
+}
+
+static bool ValidateBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+{
+    if (fCheckPOW)
+    {
+        const int height = GetBlockHeightFromIndex(block);
+        if (height < 0)
+        {
+            return state.DoS(50, false, REJECT_INVALID, "invalid-hash", false, block.hashPrevBlock.ToString() + " block is not in index ");
+        }
+
+        if (IsPeriodX16R(consensusParams, height))
+        {
+            if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " x16r proof of work failed ");
+            }
+        }
+        else if (IsPeriodScrypt2(consensusParams, height))
+        {
+            if (block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2) {
+                return state.DoS(50, false, REJECT_INVALID, "block-version", false, block.GetHash().ToString() + " block version failed ");
+            }
+            if (!CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams))  {
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " scrypt^2 proof of work failed ");
+            }
+        } 
+    }
+    
     return true;
 }
 
@@ -3660,9 +3680,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    //if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
-       // return false;
-    if (!CheckBlockHeaderWorkHash(block, state, consensusParams, fCheckPOW))
+    if (!ValidateBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
         
     // Check proof of work matches claimed amount
@@ -3849,10 +3867,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
     if (AreAssetsDeployed() && block.nVersion < VERSIONBITS_TOP_BITS_ASSETS)
         return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-    // Reject outdated veresion blocks onces forked to scrypt^2.
-    if (AreScrypt2Deployed() && block.nVersion < VERSIONBITS_TOP_BITS_SCRYPT_2)
-        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
-
     return true;
 }
 
@@ -3959,7 +3973,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 {
     AssertLockHeld(cs_main);
     // Check for duplicate
-    uint256 hash = block.GetTipHash();
+    uint256 hash = block.GetHash();
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = nullptr;
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
@@ -4969,7 +4983,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 nRewind = blkdat.GetPos();
 
                 // detect out of order blocks, and store them for later
-                uint256 hash = block.GetTipHash();
+                uint256 hash = block.GetHash();
                 if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
                     LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                             block.hashPrevBlock.ToString());
@@ -5011,16 +5025,17 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     while (range.first != range.second) {
                         std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (ReadBlockFromDisk(*pblockrecursive, it->second, nCurrentHeight + 1, chainparams.GetConsensus()))
+                        const int height = pindexBestHeader ? pindexBestHeader->nHeight + 1 : 0;
+                        if (ReadBlockFromDisk(*pblockrecursive, it->second, height, chainparams.GetConsensus()))
                         {
-                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetMinedHash(nCurrentHeight + 1).ToString(),
+                            LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
                             LOCK(cs_main);
                             CValidationState dummy;
                             if (AcceptBlock(pblockrecursive, dummy, chainparams, nullptr, true, &it->second, nullptr))
                             {
                                 nLoaded++;
-                                queue.push_back(pblockrecursive->GetNextBlockHash());
+                                queue.push_back(pblockrecursive->GetHash());
                             }
                         }
                         range.first++;
@@ -5409,17 +5424,6 @@ bool AreAssetsDeployed() {
         fAssetsIsActive = true;
 
     return fAssetsIsActive;
-}
-
-bool AreScrypt2Deployed() {
-    if (fScrypt2IsActive)
-        return true;
-
-    const ThresholdState thresholdState = VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_SCRYPT2);
-    if (thresholdState == THRESHOLD_ACTIVE)
-        fScrypt2IsActive = true;
-
-    return fScrypt2IsActive;
 }
 
 bool IsDGWActive(unsigned int nBlockNumber) {

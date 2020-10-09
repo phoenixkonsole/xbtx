@@ -17,11 +17,20 @@ enum DeploymentPos
 {
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_ASSETS, // Deployment of RIP2
-    DEPLOYMENT_SCRYPT2, 
     // DEPLOYMENT_CSV, // Deployment of BIP68, BIP112, and BIP113.
 //    DEPLOYMENT_SEGWIT, // Deployment of BIP141, BIP143, and BIP147.
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
+};
+
+enum NetworkPeriod : int
+{
+    NETWORK_PERIOD_X16R = 0,
+    NETWORK_PERIOD_MAINTANCE,
+    NETWORK_PERIOD_SCRYPT2,
+
+    CURRENT_NETWORK_PERIOD = NETWORK_PERIOD_SCRYPT2,
+    COUNT_NETWORK_PERIOD
 };
 
 /**
@@ -46,6 +55,7 @@ struct Params {
     bool nBIP34Enabled;
     bool nBIP65Enabled;
     bool nBIP66Enabled;
+    int nNetworkPeriod[COUNT_NETWORK_PERIOD]; // block number that represents start of network period
     // uint256 BIP34Hash;
     /** Block height at which BIP65 becomes active */
     // int BIP65Height;

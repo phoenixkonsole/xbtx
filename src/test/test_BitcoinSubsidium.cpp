@@ -142,7 +142,7 @@ TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction> 
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
 
-    if (IsBlockX16R(chainActive.Tip()->nHeight)) {
+    if (IsPeriodX16R(chainparams.GetConsensus(), chainActive.Tip()->nHeight)) {
         while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
     } else {
         while (!CheckProofOfWork(block.GetWorkHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;

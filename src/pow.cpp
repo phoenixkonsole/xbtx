@@ -15,14 +15,14 @@
 #include "chainparams.h"
 #include "tinyformat.h"
 
-bool IsScrypt2ForkBlocks(const int nLastBlockHeight)
+bool IsScrypt2ForkBlocks(const int blockThreshold, const int nLastBlockHeight)
 {
-    return nLastBlockHeight >= SCRYPT2_THRESHOLD && nLastBlockHeight < SCRYPT2_THRESHOLD + 3;
+    return nLastBlockHeight >= blockThreshold && nLastBlockHeight < blockThreshold + 3;
 }
 
-bool IsScrypt2AdjustmentBlocks(const int nLastBlockHeight)
+bool IsScrypt2AdjustmentBlocks(const int blockThreshold, const int nLastBlockHeight)
 {
-    return nLastBlockHeight >= SCRYPT2_THRESHOLD + 3 && nLastBlockHeight < SCRYPT2_THRESHOLD + 50;
+    return nLastBlockHeight >= blockThreshold + 3 && nLastBlockHeight < blockThreshold + 50;
 }
 
 const int difficultyAdjustmentBlock = 668075;
@@ -42,11 +42,11 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     int64_t nPastBlocks = 180; // ~3hr
 
     // Set low difficulty for first blocks after switching to scrypt^2 algorithm
-    if (IsScrypt2ForkBlocks(pindexLast->nHeight)) {
+    if (IsScrypt2ForkBlocks(params.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE], pindexLast->nHeight)) {
         arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 1);
         return scrypt2MinDifficulty.GetCompact();
     }
-    if (IsScrypt2AdjustmentBlocks(pindexLast->nHeight)) {
+    if (IsScrypt2AdjustmentBlocks(params.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE], pindexLast->nHeight)) {
         arith_uint256 scrypt2MinDifficulty(~arith_uint256(0) >> 8);
         return scrypt2MinDifficulty.GetCompact();
     }
@@ -109,7 +109,10 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     bnNew /= nTargetTimespan;
 
     // adjust difficulty
-    if (pindexLast->nHeight >= difficultyAdjustmentBlock) {
+    if (pindexLast->nHeight + 1 == params.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2]) {
+        bnNew *= 10000; //set lower difficulty for start of scrypt2 period
+    }
+    else if (pindexLast->nHeight >= difficultyAdjustmentBlock) {
         const int64_t lastTimespan = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
         const int timeMultiplier = lastTimespan / params.nPowTargetSpacing;
 

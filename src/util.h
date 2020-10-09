@@ -20,7 +20,6 @@
 #include "sync.h"
 #include "tinyformat.h"
 #include "utiltime.h"
-#include "forkutil.h"
 
 #include <atomic>
 #include <exception>

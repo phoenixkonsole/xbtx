@@ -17,50 +17,11 @@ uint256 CBlockHeader::GetHash() const
     return HashX16R(BEGIN(nVersion), END(nNonce), hashPrevBlock);
 }
 
-uint256 CBlockHeader::GetSerializeHash() const
-{
-    return SerializeHash(*this);
-}
-
-uint256 CBlockHeader::GetTipHash() const
-{
-    if (IsBlockchainX16R()) {
-        return GetHash();
-    }
-    return GetSerializeHash();
-}
-
-uint256 CBlockHeader::GetBlockHash(const int nHeight) const
-{
-    if (IsBlockX16R(nHeight)) {
-        return GetHash();
-    }
-    return GetSerializeHash();
-}
-
-uint256 CBlockHeader::GetNextBlockHash() const
-{
-    return GetBlockHash(nCurrentHeight + 1);
-}
-
 uint256 CBlockHeader::GetWorkHash() const
 {
     uint256 thash;
     scryptHash(BEGIN(nVersion), BEGIN(thash));
     return thash;
-}
-
-uint256 CBlockHeader::GetMinedHash(const int nHeight) const
-{
-    if (IsBlockX16R(nHeight)) {
-        return GetHash();
-    }
-    return GetWorkHash();
-}
-
-uint256 CBlockHeader::GetNextMinedHash() const
-{
-    return GetMinedHash(nCurrentHeight + 1);
 }
 
 std::string CBlock::ToString() const

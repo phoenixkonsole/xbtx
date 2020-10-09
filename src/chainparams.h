@@ -89,6 +89,8 @@ public:
     bool BIP66();
     bool CSVEnabled() const;
 
+    void SetStartOfScrypt2Period(int nBlockHeight);
+
     /** XBTX Start **/
     const CAmount& IssueAssetBurnAmount() const { return nIssueAssetBurnAmount; }
     const CAmount& ReissueAssetBurnAmount() const { return nReissueAssetBurnAmount; }
@@ -184,5 +186,13 @@ void TurnOffBIP65();
 void TurnOffBIP66();
 
 void TurnOffCSV();
+
+void SetStartOfScrypt2Period(int nBlockHeight);
+
+/** Detect network period **/
+Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodX16R(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodMaintence(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodScrypt2(const Consensus::Params& params, int nBlockHeight);
 
 #endif // BitcoinSubsidium_CHAINPARAMS_H

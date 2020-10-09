@@ -102,6 +102,11 @@ bool CChainParams::CSVEnabled() const{
 	return consensus.nCSVEnabled;
 }
 
+void CChainParams::SetStartOfScrypt2Period(int nBlockHeight) {
+    if (nBlockHeight > consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE]) {
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = nBlockHeight;
+    }
+}
 
 /**
  * Main network
@@ -137,10 +142,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;  //Assets (RIP2)
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1540944000; // Oct 31, 2018
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1572480000; // Oct 31, 2019
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 1599037200;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 1599073200;
 
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 667956;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 692000;
+        
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
 
@@ -261,10 +267,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 5;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1533924000; // GMT: Friday, August 10, 2018 6:00:00 PM
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1538351999; // GMT: Sunday, September 30, 2018 11:59:59 PM
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 1599037200;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 1599073200;
-
+        
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 100;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 200;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -436,9 +442,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nStartTime = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SCRYPT2].nTimeout = 999999999999ULL;
+        
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 10;
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 20;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -618,4 +625,35 @@ void TurnOffBIP65() {
 
 void TurnOffBIP66() {
 	globalChainParams->TurnOffBIP66();
+}
+
+void SetStartOfScrypt2Period(int nBlockHeight) {
+    globalChainParams->SetStartOfScrypt2Period(nBlockHeight);
+}
+
+Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight)
+{
+    for (int i = Consensus::CURRENT_NETWORK_PERIOD; i > Consensus::NETWORK_PERIOD_X16R; --i)
+    {
+        if (nBlockHeight >= params.nNetworkPeriod[i])
+        {
+            return static_cast<Consensus::NetworkPeriod>(i);
+        }
+    }
+    return Consensus::NETWORK_PERIOD_X16R;
+}
+
+bool IsPeriodX16R(const Consensus::Params& params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_X16R;
+}
+
+bool IsPeriodMaintence(const Consensus::Params& params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_MAINTANCE;
+}
+
+bool IsPeriodScrypt2(const Consensus::Params& params, int nBlockHeight)
+{
+    return GetNetworkPeriodForBlock(params, nBlockHeight) == Consensus::NETWORK_PERIOD_SCRYPT2;
 }
