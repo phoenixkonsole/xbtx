@@ -109,7 +109,10 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     bnNew /= nTargetTimespan;
 
     // adjust difficulty
-    if (pindexLast->nHeight >= difficultyAdjustmentBlock) {
+    if (pindexLast->nHeight + 1 == params.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2]) {
+        bnNew *= 10000; //set lower difficulty for start of scrypt2 period
+    }
+    else if (pindexLast->nHeight >= difficultyAdjustmentBlock) {
         const int64_t lastTimespan = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
         const int timeMultiplier = lastTimespan / params.nPowTargetSpacing;
 
