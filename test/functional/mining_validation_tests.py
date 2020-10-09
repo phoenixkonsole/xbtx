@@ -207,6 +207,14 @@ class MiningValidationTest(BitcoinSubsidiumTestFramework):
         assert_equal(node.getmininginfo()['blocks'], 19)
 
 
+        self.log.info('submit invalid block for scrypt2 period')
+        create_and_submit_block(node, 1073741824, "ae25bbab4bafac5cb9c3c72d2cd933ea442f5690ddb0e8a825816c22da5f8373",
+                                "e1912560c8b66850c8ecacdfd3d672c8c3005f60c806d5640a470f1ad959f2d6", 1602161910, 0,
+                                "011404fa0c7f5f0818000000000000000d2f6e6f64655374726174756d2f")
+        sleep(1)
+        assert_equal(node.getmininginfo()['blocks'], 19)
+
+
         self.log.info('submit blocks for scrypt2 period')
         submit_scrypt2_blocks(node)
         sleep(1)
