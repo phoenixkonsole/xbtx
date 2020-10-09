@@ -7,7 +7,6 @@
 #ifndef BitcoinSubsidium_PRIMITIVES_BLOCK_H
 #define BitcoinSubsidium_PRIMITIVES_BLOCK_H
 
-#include "forkutil.h"
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
@@ -19,6 +18,7 @@
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  */
+
 class CBlockHeader
 {
 public:
@@ -62,14 +62,10 @@ public:
         return (nBits == 0);
     }
 
+    // x16r hash. Used for x16r algorithm and as block hash for scrypt2 algorithm
     uint256 GetHash() const;
-    uint256 GetSerializeHash() const;
-    uint256 GetTipHash() const;
-    uint256 GetBlockHash(const int nHeight) const;
-    uint256 GetNextBlockHash() const;
+    // scrypt2 hash
     uint256 GetWorkHash() const;
-    uint256 GetMinedHash(const int nHeight) const;
-    uint256 GetNextMinedHash() const;
 
     int64_t GetBlockTime() const
     {

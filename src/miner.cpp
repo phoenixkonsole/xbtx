@@ -486,7 +486,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     }
 
     // Inform about the new block
-    GetMainSignals().BlockFound(pblock->GetTipHash());
+    GetMainSignals().BlockFound(pblock->GetHash());
 
     // Process this block the same as if we had received it from another node
     //CValidationState state;
@@ -575,7 +575,6 @@ void static SearchX16R(const CChainParams& chainparams, std::shared_ptr<CReserve
 
 
 double hashrate = 0.;
-static int64_t timeElapsed = 30000;
 double dHashesPerMin = 0.0;
 int64_t nHPSTimerStart = 0;
 
@@ -830,7 +829,7 @@ void static BitcoinSubsidiumMiner(const CChainParams& chainparams)
             //
             // Search
             //
-            if (IsBlockX16R(pindexPrev->nHeight + 1)) {
+            if (IsPeriodX16R(chainparams.GetConsensus(), pindexPrev->nHeight + 1)) {
                 SearchX16R(chainparams, coinbaseScript, pblock, pindexPrev, nTransactionsUpdatedLast);
             }
             else {

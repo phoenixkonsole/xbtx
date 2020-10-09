@@ -12,7 +12,6 @@
 void CChain::SetTip(CBlockIndex *pindex) {
     if (pindex == nullptr) {
         vChain.clear();
-        nCurrentHeight = 0;
         return;
     }
     vChain.resize(pindex->nHeight + 1);
@@ -20,7 +19,6 @@ void CChain::SetTip(CBlockIndex *pindex) {
         vChain[pindex->nHeight] = pindex;
         pindex = pindex->pprev;
     }
-    nCurrentHeight = Height();
 }
 
 CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {

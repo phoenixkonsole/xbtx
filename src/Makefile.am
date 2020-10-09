@@ -165,7 +165,6 @@ BitcoinSubsidium_CORE_H = \
   ui_interface.h \
   undo.h \
   util.h \
-  forkutil.h \
   utilmoneystr.h \
   utiltime.h \
   validation.h \
@@ -240,7 +239,6 @@ libBitcoinSubsidium_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  forkutil.cpp \
   $(BitcoinSubsidium_CORE_H)
 
 if ENABLE_ZMQ
@@ -376,7 +374,6 @@ libBitcoinSubsidium_consensus_a_SOURCES = \
   uint256.h \
   utilstrencodings.cpp \
   utilstrencodings.h \
-  forkutil.cpp \
   version.h
 
 # common: shared between BitcoinSubsidiumd, and BitcoinSubsidium-qt and non-server tools

@@ -13,7 +13,6 @@
 #include "tinyformat.h"
 #include "uint256.h"
 #include "util.h"
-#include "forkutil.h"
 
 #include <vector>
 
@@ -420,7 +419,7 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
-        return block.GetBlockHash(nHeight);
+        return block.GetHash();
     }
 
 

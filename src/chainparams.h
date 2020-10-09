@@ -185,4 +185,10 @@ void TurnOffBIP66();
 
 void TurnOffCSV();
 
+/** Detect network period **/
+Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodX16R(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodMaintence(const Consensus::Params& params, int nBlockHeight);
+bool IsPeriodScrypt2(const Consensus::Params& params, int nBlockHeight);
+
 #endif // BitcoinSubsidium_CHAINPARAMS_H

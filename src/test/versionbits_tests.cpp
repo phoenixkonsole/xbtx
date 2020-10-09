@@ -387,5 +387,22 @@ BOOST_FIXTURE_TEST_SUITE(versionbits_tests, TestingSetup)
         //BOOST_CHECK_EQUAL(ComputeBlockVersion(lastBlock, mainnetParams) & VERSIONBITS_TOP_MASK, VERSIONBITS_TOP_BITS);
     }
 
+    BOOST_AUTO_TEST_CASE(versionbits_scrypt2_test)
+    {
+        BOOST_TEST_MESSAGE("Running VersionBits ComputBlockVersion scrypt^2 version Test");
+
+        const auto chainParams = CreateChainParams(CBaseChainParams::REGTEST);
+        const Consensus::Params& params = chainParams->GetConsensus();
+
+        VersionBitsTester chainTester;
+        CBlockIndex *lastBlock = nullptr;
+
+        lastBlock = chainTester.Mine(10, 0, 0).Tip();
+        BOOST_CHECK(ComputeBlockVersion(lastBlock, params) < VERSIONBITS_TOP_BITS_SCRYPT_2); //Block 10 in regtest should not be scrypt^2
+
+        lastBlock = chainTester.Mine(20, 0, 0).Tip();
+        BOOST_CHECK(ComputeBlockVersion(lastBlock, params) >= VERSIONBITS_TOP_BITS_SCRYPT_2); //Block 20 in regtest must be scrypt^2
+    }
+
 
 BOOST_AUTO_TEST_SUITE_END()
