@@ -3654,7 +3654,7 @@ static bool ValidateBlockHeader(const CBlockHeader& block, CValidationState& sta
         if (IsPeriodX16R(consensusParams, height))
         {
             if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " x16r proof of work failed ");
             }
         }
         else if (IsPeriodScrypt2(consensusParams, height))
@@ -3663,7 +3663,7 @@ static bool ValidateBlockHeader(const CBlockHeader& block, CValidationState& sta
                 return state.DoS(50, false, REJECT_INVALID, "block-version", false, block.GetHash().ToString() + " block version failed ");
             }
             if (!CheckProofOfWork(block.GetWorkHash(), block.nBits, consensusParams))  {
-                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " proof of work failed ");
+                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, block.GetHash().ToString() + " scrypt^2 proof of work failed ");
             }
         } 
     }
