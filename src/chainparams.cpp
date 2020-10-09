@@ -102,6 +102,12 @@ bool CChainParams::CSVEnabled() const{
 	return consensus.nCSVEnabled;
 }
 
+void CChainParams::SetStartOfScrypt2Period(int nBlockHeight) {
+    if (nBlockHeight > consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE]) {
+        consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = nBlockHeight;
+    }
+}
+
 /**
  * Main network
  */
@@ -621,6 +627,9 @@ void TurnOffBIP66() {
 	globalChainParams->TurnOffBIP66();
 }
 
+void SetStartOfScrypt2Period(int nBlockHeight) {
+    globalChainParams->SetStartOfScrypt2Period(nBlockHeight);
+}
 
 Consensus::NetworkPeriod GetNetworkPeriodForBlock(const Consensus::Params& params, int nBlockHeight)
 {
