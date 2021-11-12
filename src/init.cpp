@@ -244,18 +244,39 @@ void Shutdown()
         }
         delete pcoinsTip;
         pcoinsTip = nullptr;
+
         delete pcoinscatcher;
         pcoinscatcher = nullptr;
+
         delete pcoinsdbview;
         pcoinsdbview = nullptr;
+
         delete pblocktree;
         pblocktree = nullptr;
+
         delete passets;
         passets = nullptr;
+
         delete passetsdb;
         passetsdb = nullptr;
+
         delete passetsCache;
         passetsCache = nullptr;
+
+        delete passetsVerifierCache;
+        passetsVerifierCache = nullptr;
+
+        delete passetsQualifierCache;
+        passetsQualifierCache = nullptr;
+
+        delete passetsRestrictionCache;
+        passetsRestrictionCache = nullptr;
+
+        delete passetsGlobalRestrictionCache;
+        passetsGlobalRestrictionCache = nullptr;
+
+        delete prestricteddb;
+        prestricteddb = nullptr;
     }
 #ifdef ENABLE_WALLET
     StopWallets();
@@ -1448,12 +1469,31 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReset, dbMaxFileSize);
 
 
+                // Basic assets
                 delete passets;
                 delete passetsdb;
                 delete passetsCache;
+
+                // Restricted assets
+                delete prestricteddb;
+                delete passetsVerifierCache;
+                delete passetsQualifierCache;
+                delete passetsRestrictionCache;
+                delete passetsGlobalRestrictionCache;
+
+               // Basic assets
                 passetsdb = new CAssetsDB(nBlockTreeDBCache, false, fReset);
                 passets = new CAssetsCache();
                 passetsCache = new CLRUCache<std::string, CDatabasedAssetData>(MAX_CACHE_ASSETS_SIZE);
+
+                // Restricted assets
+                prestricteddb = new CRestrictedDB(nBlockTreeDBCache, false, fReset);
+                passetsVerifierCache = new CLRUCache<std::string, CNullAssetTxVerifierString>(
+                        MAX_CACHE_ASSETS_SIZE);
+                passetsQualifierCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+                passetsRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+                passetsGlobalRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+
 
                 // Read for fAssetIndex to make sure that we only load asset address balances if it if true
                 pblocktree->ReadFlag("assetindex", fAssetIndex);

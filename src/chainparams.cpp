@@ -139,9 +139,20 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideRuleChangeActivationThreshold = 1814;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideMinerConfirmationWindow = 2016;
+
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;  //Assets (RIP2)
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1540944000; // Oct 31, 2018
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1572480000; // Oct 31, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideRuleChangeActivationThreshold = 1814;
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 2016;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 8;  // Restricted assets
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 5544116233; // TODO Update when ready
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 5544116233; //TODO Update when ready
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 1613; //TODO Update when ready
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 2016; //TODO Update when ready
 
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 667956;
@@ -220,18 +231,29 @@ public:
         nReissueAssetBurnAmount = 100 * COIN;
         nIssueSubAssetBurnAmount = 100 * COIN;
         nIssueUniqueAssetBurnAmount = 5 * COIN;
+        nIssueQualifierAssetBurnAmount = 1000 * COIN;
+        nIssueSubQualifierAssetBurnAmount = 100 * COIN;
+        nIssueRestrictedAssetBurnAmount = 1500 * COIN;
+        nAddNullQualifierTagBurnAmount = .1 * COIN;
 
         // Burn Addresses
         strIssueAssetBurnAddress = "RXissueAssetXXXXXXXXXXXXXXXXXhhZGt";
         strReissueAssetBurnAddress = "RXReissueAssetXXXXXXXXXXXXXXVEFAWu";
         strIssueSubAssetBurnAddress = "RXissueSubAssetXXXXXXXXXXXXXWcwhwL";
         strIssueUniqueAssetBurnAddress = "RXissueUniqueAssetXXXXXXXXXXWEAe58";
+        strIssueQualifierAssetBurnAddress = "RXissueQuaLifierXXXXXXXXXXXXUgEDbC";
+        strIssueSubQualifierAssetBurnAddress = "RXissueSubQuaLifierXXXXXXXXXVTzvv5";
+        strIssueRestrictedAssetBurnAddress = "RXissueRestrictedXXXXXXXXXXXXzJZ1q";
+        strAddNullQualifierTagBurnAddress = "RXaddTagBurnXXXXXXXXXXXXXXXXZQm5ya";
 
         //Global Burn Address
         strGlobalBurnAddress = "RXBurnXXXXXXXXXXXXXXXXXXXXXXWUo9FV";
 
         // DGW Activation
         nDGWActivationBlock = 338778;
+
+        // Restricted address Activation
+        nRestrictedActivationBlock = 0;
 
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
@@ -264,10 +286,21 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideRuleChangeActivationThreshold = 1310;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideMinerConfirmationWindow = 2016;
+
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 5;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 1533924000; // GMT: Friday, August 10, 2018 6:00:00 PM
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 1538351999; // GMT: Sunday, September 30, 2018 11:59:59 PM
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideRuleChangeActivationThreshold = 1310;
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 2016;
         
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 7;  // Restricted assets
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 1559908800; // GMT Sun, Jun 07 2019 6:00:00 PM
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 1591531200; // GMT Sun, Jun 07 2020 6:00:00 PM
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 1310;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 2016;
+
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 100;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 200;
@@ -395,18 +428,29 @@ public:
         nReissueAssetBurnAmount = 100 * COIN;
         nIssueSubAssetBurnAmount = 100 * COIN;
         nIssueUniqueAssetBurnAmount = 5 * COIN;
+        nIssueQualifierAssetBurnAmount = 1000 * COIN;
+        nIssueSubQualifierAssetBurnAmount = 100 * COIN;
+        nIssueRestrictedAssetBurnAmount = 1500 * COIN;
+        nAddNullQualifierTagBurnAmount = .1 * COIN;
 
         // Burn Addresses
         strIssueAssetBurnAddress = "n1issueAssetXXXXXXXXXXXXXXXXWdnemQ";
         strReissueAssetBurnAddress = "n1ReissueAssetXXXXXXXXXXXXXXWG9NLd";
         strIssueSubAssetBurnAddress = "n1issueSubAssetXXXXXXXXXXXXXbNiH6v";
         strIssueUniqueAssetBurnAddress = "n1issueUniqueAssetXXXXXXXXXXS4695i";
+        strIssueQualifierAssetBurnAddress = "n1issueQuaLifierXXXXXXXXXXXXUysLTj";
+        strIssueSubQualifierAssetBurnAddress = "n1issueSubQuaLifierXXXXXXXXXYffPLh";
+        strIssueRestrictedAssetBurnAddress = "n1issueRestrictedXXXXXXXXXXXXZVT9V";
+        strAddNullQualifierTagBurnAddress = "n1addTagBurnXXXXXXXXXXXXXXXXX5oLMH";
 
         // Global Burn Address
         strGlobalBurnAddress = "n1BurnXXXXXXXXXXXXXXXXXXXXXXU1qejP";
 
         // DGW Activation
         nDGWActivationBlock = 200;
+
+        // Restricted address Activation
+        nRestrictedActivationBlock = 0;
 
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
@@ -439,10 +483,20 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideRuleChangeActivationThreshold = 108;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nOverrideMinerConfirmationWindow = 144;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].bit = 6;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nTimeout = 999999999999ULL;
-        
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideRuleChangeActivationThreshold = 108;
+        consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 144;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 8;  // Restricted assets
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 108;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 144;
+
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_X16R] = 0;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_MAINTANCE] = 10;
         consensus.nNetworkPeriod[Consensus::NETWORK_PERIOD_SCRYPT2] = 20;
@@ -558,18 +612,29 @@ public:
         nReissueAssetBurnAmount = 100 * COIN;
         nIssueSubAssetBurnAmount = 100 * COIN;
         nIssueUniqueAssetBurnAmount = 5 * COIN;
+        nIssueQualifierAssetBurnAmount = 1000 * COIN;
+        nIssueSubQualifierAssetBurnAmount = 100 * COIN;
+        nIssueRestrictedAssetBurnAmount = 1500 * COIN;
+        nAddNullQualifierTagBurnAmount = .1 * COIN;
 
         // Burn Addresses
         strIssueAssetBurnAddress = "n1issueAssetXXXXXXXXXXXXXXXXWdnemQ";
         strReissueAssetBurnAddress = "n1ReissueAssetXXXXXXXXXXXXXXWG9NLd";
         strIssueSubAssetBurnAddress = "n1issueSubAssetXXXXXXXXXXXXXbNiH6v";
         strIssueUniqueAssetBurnAddress = "n1issueUniqueAssetXXXXXXXXXXS4695i";
+        strIssueQualifierAssetBurnAddress = "n1issueQuaLifierXXXXXXXXXXXXUysLTj";
+        strIssueSubQualifierAssetBurnAddress = "n1issueSubQuaLifierXXXXXXXXXYffPLh";
+        strIssueRestrictedAssetBurnAddress = "n1issueRestrictedXXXXXXXXXXXXZVT9V";
+        strAddNullQualifierTagBurnAddress = "n1addTagBurnXXXXXXXXXXXXXXXXX5oLMH";
 
         // Global Burn Address
         strGlobalBurnAddress = "n1BurnXXXXXXXXXXXXXXXXXXXXXXU1qejP";
 
         // DGW Activation
         nDGWActivationBlock = 200;
+
+        // Restricted address Activation
+        nRestrictedActivationBlock = 0;
 
         nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
         nMinReorganizationPeers = 4;
