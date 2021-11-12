@@ -201,8 +201,9 @@ bool IsAssetNameASubQualifier(const std::string& name)
 
 
 bool IsAssetNameValid(const std::string& name, AssetType& assetType, std::string& error)
-{
+{   
     assetType = AssetType::INVALID;
+
     if (std::regex_match(name, UNIQUE_INDICATOR))
     {
         bool ret = IsTypeCheckNameValid(AssetType::UNIQUE, name, error);
@@ -2810,21 +2811,15 @@ size_t CAssetsCache::GetCacheSizeV2() const
 
 bool CheckIssueBurnTx(const CTxOut& txOut, const AssetType& type, const int numberIssued)
 {
+    if (type == AssetType::REISSUE || type == AssetType::VOTE || type == AssetType::OWNER || type == AssetType::INVALID)
+        return false;
+
     CAmount burnAmount = 0;
     std::string burnAddress = "";
 
-    if (type == AssetType::SUB) {
-        burnAmount = GetIssueSubAssetBurnAmount();
-        burnAddress = Params().IssueSubAssetBurnAddress();
-    } else if (type == AssetType::ROOT) {
-        burnAmount = GetIssueAssetBurnAmount();
-        burnAddress = Params().IssueAssetBurnAddress();
-    } else if (type == AssetType::UNIQUE) {
-        burnAmount = GetIssueUniqueAssetBurnAmount();
-        burnAddress = Params().IssueUniqueAssetBurnAddress();
-    } else {
-        return false;
-    }
+    // Get the burn address and amount for the type of asset
+    burnAmount = GetBurnAmount(type);
+    burnAddress = GetBurnAddress(type);
 
     // If issuing multiple (unique) assets need to burn for each
     burnAmount *= numberIssued;
@@ -3243,6 +3238,16 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
             data.destination = DecodeDestination(address);
             data.assetName = asset.strName;
             return true;
+        } else if (QualifierAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
+        } else if (RestrictedAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
         }
     } else if (type == TX_TRANSFER_ASSET) {
         CAssetTransfer transfer;

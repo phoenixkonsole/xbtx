@@ -244,7 +244,7 @@ bool CScript::IsAssetScript(int& nType, bool& isOwner) const
 
 bool CScript::IsAssetScript(int& nType, bool& fIsOwner, int& nStartingIndex) const
 {
-    if (this->size() > 30) {
+    if (this->size() > 31) {
         if ((*this)[25] == OP_XBTX_ASSET) { // OP_XBTX_ASSET is always in the 25 index of the script if it exists
             int index = -1;
             if ((*this)[27] == XBTX_R) { // Check to see if XBTX starts at 27 ( this->size() < 105)

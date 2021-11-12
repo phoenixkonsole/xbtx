@@ -626,10 +626,11 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
                 }
             }
         }
-
+        
         if (nType == TX_TRANSFER_ASSET) {
             CAssetTransfer transfer;
             std::string address = "";
+
             if (!TransferAssetFromScript(txout.scriptPubKey, transfer, address))
                 return state.DoS(100, false, REJECT_INVALID, "bad-tx-asset-transfer-bad-deserialize", false, "");
 
@@ -641,7 +642,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
                 totalOutputs.at(transfer.strName) += transfer.nAmount;
             else
                 totalOutputs.insert(make_pair(transfer.strName, transfer.nAmount));
-
+            
             if (!fRunningUnitTests) {
                 if (IsAssetNameAnOwner(transfer.strName)) {
                     if (transfer.nAmount != OWNER_ASSET_AMOUNT)
@@ -674,7 +675,6 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
         }
         index++;
     }
-
     if (assetCache) {
         if (tx.IsNewAsset()) {
             // Get the asset type
@@ -688,29 +688,9 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
             AssetType assetType;
             IsAssetNameValid(asset.strName, assetType);
 
-            if (AreRestrictedAssetsDeployed()) {
-                if (assetType == AssetType::SUB) {
-                    std::string root = GetParentName(asset.strName);
-                    bool fOwnerOutFound = false;
-                    for (auto out : tx.vout) {
-                        CAssetTransfer transfer;
-                        std::string transferAddress;
-                        if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
-                            if (root + OWNER_TAG == transfer.strName) {
-                                fOwnerOutFound = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!fOwnerOutFound) {
-                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-issue-new-asset-missing-owner-asset");
-                    }
-                }
-            }
-
             if (!ContextualCheckNewAsset(assetCache, asset, strError, fCheckMempool))
                 return state.DoS(100, false, REJECT_INVALID, strError);
+
         } else if (tx.IsReissueAsset()) {
             CReissueAsset reissue_asset;
             std::string address;
@@ -780,7 +760,6 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
             }
         }
     }
-    
     for (const auto& outValue : totalOutputs) {
         if (!totalInputs.count(outValue.first)) {
             std::string errorMsg;
