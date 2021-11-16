@@ -121,6 +121,7 @@ private:
     QAction *manageAssetAction;
     QAction *messagingAction;
     QAction *votingAction;
+    QAction *restrictedAssetAction;
     QWidget *headerWidget;
     QLabel *labelCurrentMarket;
     QLabel *labelCurrentPrice;
@@ -237,6 +238,7 @@ private Q_SLOTS:
     void gotoAssetsPage();
     void gotoCreateAssetsPage();
     void gotoManageAssetsPage();
+    void gotoRestrictedAssetsPage();
     /** XBTX END */
 
 #endif // ENABLE_WALLET

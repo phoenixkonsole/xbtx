@@ -2030,6 +2030,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* 
                 }
             }
         }
+                   
         /** XBTX END */
 
         // restore inputs
@@ -5505,6 +5506,23 @@ bool AreAssetsDeployed() {
         fAssetsIsActive = true;
 
     return fAssetsIsActive;
+}
+
+bool IsRip5Active()
+{
+    if (fRip5IsActive)
+        return true;
+
+    const ThresholdState thresholdState = VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_MSG_REST_ASSETS);
+    if (thresholdState == THRESHOLD_ACTIVE)
+        fRip5IsActive = true;
+
+    return fRip5IsActive;
+}
+
+bool AreMessagesDeployed() {
+
+    return IsRip5Active();
 }
 
 bool AreRestrictedAssetsDeployed() {

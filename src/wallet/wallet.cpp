@@ -3228,6 +3228,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
             // TODO: pass in scriptChange instead of reservekey so
             // change transaction isn't always pay-to-BitcoinSubsidium-address
             CScript scriptChange;
+            CScript assetScriptChange;
 
             // coin control: send change to custom address
             if (!boost::get<CNoDestination>(&coin_control.destChange)) {
@@ -3241,6 +3242,14 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
 
                 scriptChange = GetScriptForDestination(keyID);
             }
+
+            /** XBTX START */
+            if (!boost::get<CNoDestination>(&coin_control.assetDestChange)) {
+                assetScriptChange = GetScriptForDestination(coin_control.assetDestChange);
+            } else {
+                assetScriptChange = scriptChange;
+            }
+            /** XBTX END */
 
             CTxOut change_prototype_txout(0, scriptChange);
             size_t change_prototype_size = GetSerializeSize(change_prototype_txout, SER_DISK, 0);
@@ -3355,7 +3364,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
 
                                 // Get the change address
                                 CTxDestination dest;
-                                if (!ExtractDestination(scriptChange, dest)) {
+                                if (!ExtractDestination(assetScriptChange, dest)) {
                                     strFailReason = _("Failed to extract destination from change script");
                                     return false;
                                 }
@@ -3395,7 +3404,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                                     }
                                 } else  {
                                     fFoundValueChangeAddress = true;
-                                    CScript scriptAssetChange = scriptChange;
+                                    CScript scriptAssetChange = assetScriptChange;
                                     CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
 
                                     assetTransfer.ConstructTransaction(scriptAssetChange);
@@ -3408,7 +3417,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                                     return false;
                                 }
                             } else {
-                                CScript scriptAssetChange = scriptChange;
+                                CScript scriptAssetChange = assetScriptChange;
                                 CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
 
                                 assetTransfer.ConstructTransaction(scriptAssetChange);

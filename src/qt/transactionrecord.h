@@ -3,9 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BitcoinSubsidium_QT_TRANSACTIONRECORD_H
-#define BitcoinSubsidium_QT_TRANSACTIONRECORD_H
-
 #include "amount.h"
 #include "uint256.h"
 
@@ -150,4 +147,3 @@ public:
     bool statusUpdateNeeded() const;
 };
 
-#endif // BitcoinSubsidium_QT_TRANSACTIONRECORD_H

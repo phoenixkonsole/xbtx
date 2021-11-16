@@ -681,6 +681,26 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             mapAssetVerifierChanged.at(item).erase(hash);
         mapHashVerifierChanged.erase(hash);
     }
+
+     if (mapHashToAddressAddedTag.count(hash)) {
+        for (auto item : mapHashToAddressAddedTag.at(hash)) {
+            if (mapAddressAddedTag.count(item)) {
+                mapAddressAddedTag.at(item).erase(hash);
+                if (mapAddressAddedTag.at(item).size() == 0)
+                    mapAddressAddedTag.erase(item);
+            }
+        }
+    }
+
+    if (mapHashToAddressRemoveTag.count(hash)) {
+        for (auto item : mapHashToAddressRemoveTag.at(hash)) {
+            if (mapAddressRemoveTag.count(item)) {
+                mapAddressRemoveTag.at(item).erase(hash);
+                if (mapAddressRemoveTag.at(item).size() == 0)
+                    mapAddressRemoveTag.erase(item);
+            }
+        }
+    }
     /** XBTX END */
 }
 
@@ -966,6 +986,11 @@ void CTxMemPool::_clear()
     mapHashQualifiersChanged.clear();
     mapAssetVerifierChanged.clear();
     mapHashVerifierChanged.clear();
+
+    mapHashToAddressAddedTag.clear();
+    mapAddressAddedTag.clear();
+    mapHashToAddressRemoveTag.clear();
+    mapAddressRemoveTag.clear();
 }
 
 void CTxMemPool::clear()
