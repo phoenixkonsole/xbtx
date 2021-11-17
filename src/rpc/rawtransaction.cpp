@@ -348,11 +348,13 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "createrawtransaction [{\"txid\":\"id\",\"vout\":n},...] {\"address\":(amount or object),\"data\":\"hex\",...}\n"
             "                     ( locktime ) ( replaceable )\n"
             "\nCreate a transaction spending the given inputs and creating new outputs.\n"
-            "Outputs are addresses (paired with a XBTX amount, data or object specifying an asset operation) or data.\n"
+            "Outputs are addresses (paired with a RVN amount, data or object specifying an asset operation) or data.\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction's inputs are not signed, and\n"
             "it is not stored in the wallet or transmitted to the network.\n"
 
+            "\nPaying for Asset Operations:\n"
+            "  Some operations require an amount of RVN to be sent to a burn address:\n"
             "\n"
             "    Operation          Amount + Burn Address\n"
             "    transfer                 0\n"
@@ -401,8 +403,8 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "     [\n"
             "       {\n"
             "         \"txid\":\"id\",                      (string, required) The transaction id\n"
-            "         \"vout\":n,                         (numeric, required) The output number\n"
-            "         \"sequence\":n                      (numeric, optional) The sequence number\n"
+            "         \"vout\":n,                         (number, required) The output number\n"
+            "         \"sequence\":n                      (number, optional) The sequence number\n"
             "       } \n"
             "       ,...\n"
             "     ]\n"
@@ -410,14 +412,24 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "     {\n"
             "       \"address\":                          (string, required) The destination raven address.\n"
             "                                               Each output must have a different address.\n"
-            "         x.xxx                             (numeric or string, required) The XBTX amount\n"
+            "         x.xxx                             (number or string, required) The RVN amount\n"
             "           or\n"
             "         {                                 (object) A json object of assets to send\n"
             "           \"transfer\":\n"
             "             {\n"
             "               \"asset-name\":               (string, required) asset name\n"
-            "               asset-quantity              (numeric, required) the number of raw units to transfer\n"
+            "               asset-quantity              (number, required) the number of raw units to transfer\n"
             "               ,...\n"
+            "             }\n"
+            "         }\n"
+            "           or\n"
+            "         {                                 (object) A json object of describing the transfer and message contents to send\n"
+            "           \"transferwithmessage\":\n"
+            "             {\n"
+            "               \"asset-name\":              (string, required) asset name\n"
+            "               asset-quantity,            (number, required) the number of raw units to transfer\n"
+            "               \"message\":\"hash\",          (string, required) ipfs hash or a txid hash\n"
+            "               \"expire_time\": n           (number, required) utc time in seconds to expire the message\n"
             "             }\n"
             "         }\n"
             "           or\n"
@@ -430,7 +442,8 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "               \"reissuable\":[0-1],         (number, required) 1=reissuable asset\n"
             "               \"has_ipfs\":[0-1],           (number, required) 1=passing ipfs_hash\n"
             "               \"ipfs_hash\":\"hash\"          (string, optional) an ipfs hash for discovering asset metadata\n"
-            "               \"owner_change_address\"       (string, optional) the address where the owner token will be sent to. If not given, it will be sent to the output address\n"
+            // TODO if we decide to remove the consensus check from issue 675 https://github.com/RavenProject/Ravencoin/issues/675
+   //TODO"               \"custom_owner_address\": \"addr\" (string, optional) owner token will get sent to this address if set\n"
             "             }\n"
             "         }\n"
             "           or\n"
@@ -448,16 +461,16 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "         {                                 (object) A json object describing follow-on asset issue.\n"
             "           \"reissue\":\n"
             "             {\n"
-            "               \"asset_name\":\"asset-name\",  (string, required) name of asset to be reissued\n"
-            "               \"asset_quantity\":n,         (number, required) the number of raw units to issue\n"
-            "               \"reissuable\":[0-1],         (number, optional) default is 1, 1=reissuable asset\n"
+            "               \"asset_name\":\"asset-name\", (string, required) name of asset to be reissued\n"
+            "               \"asset_quantity\":n,          (number, required) the number of raw units to issue\n"
+            "               \"reissuable\":[0-1],          (number, optional) default is 1, 1=reissuable asset\n"
             "               \"ipfs_hash\":\"hash\",        (string, optional) An ipfs hash for discovering asset metadata, \n"
             "                                                Overrides the current ipfs hash if given\n"
             "               \"owner_change_address\"       (string, optional) the address where the owner token will be sent to. \n"
             "                                                If not given, it will be sent to the output address\n"
             "             }\n"
             "         }\n"
-            "         or\n"
+            "           or\n"
             "         {                                 (object) A json object describing how restricted asset to issue\n"
             "           \"issue_restricted\":\n"
             "             {\n"
@@ -576,6 +589,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0}]\" \"{\\\"RXissueRestrictedXXXXXXXXXXXXzJZ1q\\\":1500,\\\"change_address\\\":change_amount,\\\"issuer_address\\\":{\\\"issue_restricted\\\":{\\\"asset_name\\\":\\\"$MYASSET\\\",\\\"asset_quantity\\\":1000000,\\\"verifier_string\\\":\\\"#TAG & !KYC\\\",\\\"units\\\":1,\\\"reissuable\\\":0,\\\"has_ipfs\\\":1,\\\"ipfs_hash\\\":\\\"43f81c6f2c0593bde5a85e09ae662816eca80797\\\"}}}\"")
             + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0}]\" \"{\\\"RXissueUniqueAssetXXXXXXXXXXWEAe58\\\":20,\\\"change_address\\\":change_amount,\\\"issuer_address\\\":{\\\"issue_unique\\\":{\\\"root_name\\\":\\\"MYASSET\\\",\\\"asset_tags\\\":[\\\"ALPHA\\\",\\\"BETA\\\"],\\\"ipfs_hashes\\\":[\\\"43f81c6f2c0593bde5a85e09ae662816eca80797\\\",\\\"43f81c6f2c0593bde5a85e09ae662816eca80797\\\"]}}}\"")
             + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0},{\\\"txid\\\":\\\"myasset\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"transfer\\\":{\\\"MYASSET\\\":50}}}\"")
+            + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0},{\\\"txid\\\":\\\"myasset\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"transferwithmessage\\\":{\\\"MYASSET\\\":50,\\\"message\\\":\\\"hash\\\",\\\"expire_time\\\": utc_time}}}\"")
             + HelpExampleCli("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0},{\\\"txid\\\":\\\"myownership\\\",\\\"vout\\\":0}]\" \"{\\\"issuer_address\\\":{\\\"reissue\\\":{\\\"asset_name\\\":\\\"MYASSET\\\",\\\"asset_quantity\\\":2000000}}}\"")
             + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"mycoin\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
         );
@@ -927,7 +941,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
                         std::string strError = "";
                         if (!transfer.IsValid(strError))
                             throw JSONRPCError(RPC_INVALID_PARAMETER, strError);
-
+        
                         // Construct transaction
                         CScript scriptPubKey = GetScriptForDestination(destination);
                         transfer.ConstructTransaction(scriptPubKey);

@@ -1397,8 +1397,7 @@ bool CAssetTransfer::IsValid(std::string& strError) const
     // Don't use this function with any sort of consensus checks
     // All of these checks are run with ContextualCheckTransferAsset also
 
-     strError = "";
-
+    strError = "";
     if (!IsAssetNameValid(std::string(strName))) {
         strError = "Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.";
         return false;

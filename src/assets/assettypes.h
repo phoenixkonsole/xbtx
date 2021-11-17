@@ -190,6 +190,8 @@ public:
     {
         nAmount = 0;
         strName = "";
+        message = "";
+        nExpireTime = 0;
     }
 
     ADD_SERIALIZE_METHODS;
