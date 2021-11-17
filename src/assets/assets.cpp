@@ -202,6 +202,11 @@ bool IsAssetNameASubQualifier(const std::string& name)
 
 bool IsAssetNameValid(const std::string& name, AssetType& assetType, std::string& error)
 {   
+    // Do a max length check first to stop the possibility of a stack exhaustion.
+    // We check for a value that is larger than the max asset name
+    if (name.length() > 40)
+        return false;
+
     assetType = AssetType::INVALID;
 
     if (std::regex_match(name, UNIQUE_INDICATOR))
@@ -857,6 +862,14 @@ bool ReissueAssetFromScript(const CScript& scriptPubKey, CReissueAsset& reissue,
 //! Call VerifyNewAsset if this function returns true
 bool CTransaction::IsNewAsset() const
 {
+    // New Asset transaction will always have at least three outputs.
+    // 1. Owner Token output
+    // 2. Issue Asset output
+    // 3. RVN Burn Fee
+    if (vout.size() < 3) {
+        return false;
+    }
+
     // Check for the assets data CTxOut. This will always be the last output in the transaction
     if (!CheckIssueDataTx(vout[vout.size() - 1]))
         return false;
@@ -4983,10 +4996,6 @@ bool CheckNewAsset(const CNewAsset& asset, std::string& strError)
             strError = _("Invalid parameter: reissuable must be 0");
             return false;
         }
-    }
-
-    if (assetType == AssetType::RESTRICTED) {
-        // TODO add more restricted asset checks
     }
 
     if (IsAssetNameAnOwner(std::string(asset.strName))) {

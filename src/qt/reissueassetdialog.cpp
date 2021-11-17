@@ -13,7 +13,6 @@
 #include "core_io.h"
 #include "univalue.h"
 #include "assets/assettypes.h"
-#include "assets/assets.h"
 #include "BitcoinSubsidiumunits.h"
 #include "optionsmodel.h"
 #include "sendcoinsdialog.h"

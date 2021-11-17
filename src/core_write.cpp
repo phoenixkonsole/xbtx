@@ -110,7 +110,12 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
             str += "[error]";
             return str;
         }
-        if (0 <= opcode && opcode <= OP_PUSHDATA4) {
+        if (opcode == OP_XBTX_ASSET) {
+            // Once we hit an OP_XBTX_ASSET, we know that all the next data should be considered as hex
+            str += GetOpName(opcode);
+            str += " ";
+            str += HexStr(vch);
+        } else if (0 <= opcode && opcode <= OP_PUSHDATA4) {
             if (vch.size() <= static_cast<std::vector<unsigned char>::size_type>(4)) {
                 str += strprintf("%d", CScriptNum(vch, false).getint());
             } else {
