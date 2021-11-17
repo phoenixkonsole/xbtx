@@ -1384,22 +1384,35 @@ bool CAssetTransfer::IsValid(std::string& strError) const
     // Don't use this function with any sort of consensus checks
     // All of these checks are run with ContextualCheckTransferAsset also
 
-    strError = "";
+     strError = "";
 
-    if (!IsAssetNameValid(std::string(strName)))
+    if (!IsAssetNameValid(std::string(strName))) {
         strError = "Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.";
+        return false;
+    }
 
     // this function is only being called in createrawtranasction, so it is fine to have a contextual check here
     // if this gets called anywhere else, we will need to move this to a Contextual function
-    if (nAmount <= 0)
-        strError  = "Invalid parameter: asset amount can't be equal to or less than zero.";
+    if (nAmount <= 0) {
+        strError = "Invalid parameter: asset amount can't be equal to or less than zero.";
+        return false;
+    }
+
+    if (message.empty() && nExpireTime > 0) {
+        strError = "Invalid parameter: asset transfer expiration time requires a message to be attached to the transfer";
+        return false;
+    }
 
     if (nExpireTime < 0) {
         strError = "Invalid parameter: expiration time must be a positive value";
         return false;
     }
 
-    return strError == "";
+    if (message.size() && !CheckEncoded(message, strError)) {
+        return false;
+    }
+
+    return true;
 }
 
 bool CAssetTransfer::ContextualCheckAgainstVerifyString(CAssetsCache *assetCache, const std::string& address, std::string& strError) const
