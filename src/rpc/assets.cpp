@@ -1174,7 +1174,7 @@ UniValue transfer(const JSONRPCRequest& request)
 
     CTxDestination xbtx_change_dest = DecodeDestination(xbtx_change_address);
     if (!xbtx_change_address.empty() && !IsValidDestination(xbtx_change_dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("RVN change address must be a valid address. Invalid address: ") + xbtx_change_address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("XBTX change address must be a valid address. Invalid address: ") + xbtx_change_address);
 
     CTxDestination asset_change_dest = DecodeDestination(asset_change_address);
     if (!asset_change_address.empty() && !IsValidDestination(asset_change_dest))
@@ -1216,7 +1216,7 @@ UniValue transferfromaddresses(const JSONRPCRequest& request)
 {
     if (request.fHelp || !AreAssetsDeployed() || request.params.size() < 4 || request.params.size() > 8)
         throw std::runtime_error(
-            "transferfromaddresses \"asset_name\" [\"from_addresses\"] qty \"to_address\" \"message\" expire_time \"rvn_change_address\" \"asset_change_address\"\n"
+            "transferfromaddresses \"asset_name\" [\"from_addresses\"] qty \"to_address\" \"message\" expire_time \"xbtx_change_address\" \"asset_change_address\"\n"
             + AssetActivationWarning() +
             "\nTransfer a quantity of an owned asset in specific address(es) to a given address"
 
@@ -1287,7 +1287,7 @@ UniValue transferfromaddresses(const JSONRPCRequest& request)
 
     CTxDestination xbtx_change_dest = DecodeDestination(xbtx_change_address);
     if (!xbtx_change_address.empty() && !IsValidDestination(xbtx_change_dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("RVN change address must be a valid address. Invalid address: ") + xbtx_change_address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("XBTX change address must be a valid address. Invalid address: ") + xbtx_change_address);
 
     CTxDestination asset_change_dest = DecodeDestination(asset_change_address);
     if (!asset_change_address.empty() && !IsValidDestination(asset_change_dest))
@@ -1351,7 +1351,7 @@ UniValue transferfromaddress(const JSONRPCRequest& request)
 {
     if (request.fHelp || !AreAssetsDeployed() || request.params.size() < 4 || request.params.size() > 8)
         throw std::runtime_error(
-                "transferfromaddress \"asset_name\" \"from_address\" qty \"to_address\" \"message\" expire_time \"rvn_change_address\" \"asset_change_address\"\n"
+                "transferfromaddress \"asset_name\" \"from_address\" qty \"to_address\" \"message\" expire_time \"xbtx_change_address\" \"asset_change_address\"\n"
                 + AssetActivationWarning() +
                 "\nTransfer a quantity of an owned asset in a specific address to a given address"
 
@@ -1362,7 +1362,7 @@ UniValue transferfromaddress(const JSONRPCRequest& request)
                 "4. \"to_address\"               (string, required) address to send the asset to\n"
                 "5. \"message\"                  (string, optional) Once RIP5 is voted in ipfs hash or txid hash to send along with the transfer\n"
                 "6. \"expire_time\"              (numeric, optional) UTC timestamp of when the message expires\n"
-                "7. \"rvn_change_address\"       (string, optional, default = \"\") the transaction RVN change will be sent to this address\n"
+                "7. \"xbtx_change_address\"       (string, optional, default = \"\") the transaction XBTX change will be sent to this address\n"
                 "8. \"asset_change_address\"     (string, optional, default = \"\") the transaction Asset change will be sent to this address\n"
 
                 "\nResult:\n"
@@ -1418,9 +1418,9 @@ UniValue transferfromaddress(const JSONRPCRequest& request)
     if (fMessageCheck)
         CheckIPFSTxidMessage(message, expireTime);
 
-    std::string rvn_change_address = "";
+    std::string xbtx_change_address = "";
     if (request.params.size() > 6) {
-        rvn_change_address = request.params[6].get_str();
+        xbtx_change_address = request.params[6].get_str();
     }
 
     std::string asset_change_address = "";
@@ -1428,9 +1428,9 @@ UniValue transferfromaddress(const JSONRPCRequest& request)
         asset_change_address = request.params[7].get_str();
     }
 
-    CTxDestination rvn_change_dest = DecodeDestination(rvn_change_address);
-    if (!rvn_change_address.empty() && !IsValidDestination(rvn_change_dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("RVN change address must be a valid address. Invalid address: ") + rvn_change_address);
+    CTxDestination xbtx_change_dest = DecodeDestination(xbtx_change_address);
+    if (!xbtx_change_address.empty() && !IsValidDestination(xbtx_change_dest))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("XBTX change address must be a valid address. Invalid address: ") + xbtx_change_address);
 
     CTxDestination asset_change_dest = DecodeDestination(asset_change_address);
     if (!asset_change_address.empty() && !IsValidDestination(asset_change_dest))
@@ -1450,7 +1450,7 @@ UniValue transferfromaddress(const JSONRPCRequest& request)
     pwallet->AvailableAssets(mapAssetCoins);
 
     // Set the change addresses
-    ctrl.destChange = rvn_change_dest;
+    ctrl.destChange = xbtx_change_dest;
     ctrl.assetDestChange = asset_change_dest;
 
     if (!mapAssetCoins.count(asset_name)) {
@@ -1946,7 +1946,7 @@ UniValue listtagsforaddress(const JSONRPCRequest &request)
     // Check to make sure the given from address is valid
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid RVN address: ") + address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid XBTX address: ") + address);
 
     std::vector<std::string> qualifiers;
 
@@ -2039,7 +2039,7 @@ UniValue listaddressrestrictions(const JSONRPCRequest& request)
     // Check to make sure the given from address is valid
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid RVN address: ") + address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid XBTX address: ") + address);
 
     std::vector<std::string> restrictions;
 
@@ -2136,7 +2136,7 @@ UniValue checkaddresstag(const JSONRPCRequest& request)
                 "\nChecks to see if an address has the given tag\n"
 
                 "\nArguments:\n"
-                "1. \"address\"          (string, required) the RVN address to search\n"
+                "1. \"address\"          (string, required) the XBTX address to search\n"
                 "1. \"tag_name\"         (string, required) the tag to search\n"
 
                 "\nResult:\n"
@@ -2163,7 +2163,7 @@ UniValue checkaddresstag(const JSONRPCRequest& request)
     // Check to make sure the given from address is valid
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid RVN address: ") + address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid XBTX address: ") + address);
 
     return passets->CheckForAddressQualifier(qualifier_name, address);
 }
@@ -2177,7 +2177,7 @@ UniValue checkaddressrestriction(const JSONRPCRequest& request)
                 "\nChecks to see if an address has been frozen by the given restricted asset\n"
 
                 "\nArguments:\n"
-                "1. \"address\"          (string, required) the RVN address to search\n"
+                "1. \"address\"          (string, required) the XBTX address to search\n"
                 "1. \"restricted_name\"   (string, required) the restricted asset to search\n"
 
                 "\nResult:\n"
@@ -2203,7 +2203,7 @@ UniValue checkaddressrestriction(const JSONRPCRequest& request)
     // Check to make sure the given from address is valid
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid RVN address: ") + address);
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Not valid XBTX address: ") + address);
 
     return passets->CheckForAddressRestriction(restricted_name, address);
 }
@@ -2258,7 +2258,7 @@ UniValue issuequalifierasset(const JSONRPCRequest& request)
                 "1. \"asset_name\"            (string, required) a unique name\n"
                 "2. \"qty\"                   (numeric, optional, default=1) the number of units to be issued\n"
                 "3. \"to_address\"            (string), optional, default=\"\"), address asset will be sent to, if it is empty, address will be generated for you\n"
-                "4. \"change_address\"        (string), optional, default=\"\"), address the the rvn change will be sent to, if it is empty, change address will be generated for you\n"
+                "4. \"change_address\"        (string), optional, default=\"\"), address the the xbtx change will be sent to, if it is empty, change address will be generated for you\n"
                 "5. \"has_ipfs\"              (boolean, optional, default=false), whether ipfs hash is going to be added to the asset\n"
                 "6. \"ipfs_hash\"             (string, optional but required if has_ipfs = 1), an ipfs hash or a txid hash once RIP5 is activated\n"
 
@@ -2404,7 +2404,7 @@ UniValue issuerestrictedasset(const JSONRPCRequest& request)
                 "2. \"qty\"                   (numeric, required) the quantity of the asset to be issued\n"
                 "3. \"verifier\"              (string, required) the verifier string that will be evaluated when restricted asset transfers are made\n"
                 "4. \"to_address\"            (string, required) address asset will be sent to, this address must meet the verifier string requirements\n"
-                "5. \"change_address\"        (string, optional, default=\"\") address that the rvn change will be sent to, if it is empty, change address will be generated for you\n"
+                "5. \"change_address\"        (string, optional, default=\"\") address that the xbtx change will be sent to, if it is empty, change address will be generated for you\n"
                 "6. \"units\"                 (integer, optional, default=0, min=0, max=8) the number of decimals precision for the asset (0 for whole units (\"1\"), 8 for max precision (\"1.00000000\")\n"
                 "7. \"reissuable\"            (boolean, optional, default=true (false for unique assets)) whether future reissuance is allowed\n"
                 "8. \"has_ipfs\"              (boolean, optional, default=false) whether an ipfs hash or txid hash is going to be added to the asset\n"
@@ -2549,7 +2549,7 @@ UniValue reissuerestrictedasset(const JSONRPCRequest& request)
                 "3. \"to_address\"            (string, required) address asset will be sent to, this address must meet the verifier string requirements\n"
                 "4. \"change_verifier\"       (boolean, optional, default=false) if the verifier string will get changed\n"
                 "5. \"new_verifier\"          (string, optional, default=\"\") the new verifier string that will be evaluated when restricted asset transfers are made\n"
-                "6. \"change_address\"        (string, optional, default=\"\") address that the rvn change will be sent to, if it is empty, change address will be generated for you\n"
+                "6. \"change_address\"        (string, optional, default=\"\") address that the xbtx change will be sent to, if it is empty, change address will be generated for you\n"
                 "7. \"new_units\"             (numeric, optional, default=-1) the new units that will be associated with the asset\n"
                 "8. \"reissuable\"            (boolean, optional, default=true (false for unique assets)) whether future reissuance is allowed\n"
                 "9. \"new_ipfs\"              (string, optional, default=\"\") whether to update the current ipfs hash or txid once RIP5 is active\n"

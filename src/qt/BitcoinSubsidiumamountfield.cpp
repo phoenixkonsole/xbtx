@@ -124,7 +124,7 @@ public:
             const QFontMetrics fm(fontMetrics());
             int h = lineEdit()->minimumSizeHint().height();
             #ifndef QTversionPreFiveEleven
-                int w = fm.horizontalAdvance(BitcoinSubsidiumUnits::format(BitcoinSubsidiumUnits::XBTX, RavenUnits::maxMoney(), false, BitcoinSubsidiumUnits::separatorAlways, assetUnit));
+                int w = fm.horizontalAdvance(BitcoinSubsidiumUnits::format(BitcoinSubsidiumUnits::XBTX, BitcoinSubsidiumUnits::maxMoney(), false, BitcoinSubsidiumUnits::separatorAlways, assetUnit));
 			#else
 				int w = fm.width(BitcoinSubsidiumUnits::format(BitcoinSubsidiumUnits::XBTX, BitcoinSubsidiumUnits::maxMoney(), false, BitcoinSubsidiumUnits::separatorAlways, assetUnit));
 			#endif

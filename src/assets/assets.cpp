@@ -865,7 +865,7 @@ bool CTransaction::IsNewAsset() const
     // New Asset transaction will always have at least three outputs.
     // 1. Owner Token output
     // 2. Issue Asset output
-    // 3. RVN Burn Fee
+    // 3. XBTX Burn Fee
     if (vout.size() < 3) {
         return false;
     }
@@ -4027,7 +4027,7 @@ bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinCo
         vecSend.push_back(recipient);
     }
 
-     // If assetTxData is not nullptr, the user wants to add some OP_RVN_ASSET data transactions into the transaction
+     // If assetTxData is not nullptr, the user wants to add some OP_XBTX_ASSET data transactions into the transaction
     if (nullAssetTxData) {
         std::string strError = "";
         int nAddTagCount = 0;
@@ -4063,7 +4063,7 @@ bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinCo
         }
     }
 
-    // nullGlobalRestiotionData, the user wants to add OP_RVN_ASSET OP_RVN_ASSET OP_RVN_ASSETS data transaction to the transaction
+    // nullGlobalRestiotionData, the user wants to add OP_XBTX_ASSET OP_XBTX_ASSET OP_XBTX_ASSETS data transaction to the transaction
     if (nullGlobalRestrictionData) {
         std::string strError = "";
         for (auto dataObject : *nullGlobalRestrictionData) {

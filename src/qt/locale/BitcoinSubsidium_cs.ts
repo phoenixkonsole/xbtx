@@ -3489,7 +3489,7 @@
     </message>
     <message>
         <source>Use hierarchical deterministic key generation (HD) after BIP32. Only has effect during wallet creation/first start</source>
-        <translation>Použít hierarchické deterministické generování klíčů (HD) podle BIP32. Má vliv pouze během vytváření peněženky/prvního startu</translation>
+        <translation>Použít hierarchické deterministické generování klíčů (HD) podle BIP32. Má vliv pouze během vytváření peněženky/pxbtxího startu</translation>
     </message>
     <message>
         <source>Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway</source>
@@ -3773,7 +3773,7 @@
     </message>
     <message>
         <source>Keypool ran out, please call keypoolrefill first</source>
-        <translation>Vyčerpal se zásobník klíčů, zavolej prvně, prosím, keypoolrefill</translation>
+        <translation>Vyčerpal se zásobník klíčů, zavolej pxbtxě, prosím, keypoolrefill</translation>
     </message>
     <message>
         <source>Listen for JSON-RPC connections on &lt;port&gt; (default: %u or testnet: %u)</source>

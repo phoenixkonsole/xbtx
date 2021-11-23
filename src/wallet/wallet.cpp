@@ -3280,7 +3280,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
                     
                     /** XBTX START */
-                    // Check to see if you need to make an asset data outpoint OP_RVN_ASSET data
+                    // Check to see if you need to make an asset data outpoint OP_XBTX_ASSET data
                     if (recipient.scriptPubKey.IsNullAssetTxDataScript()) {
                         assert(txout.nValue == 0);
                         txNew.vout.push_back(txout);

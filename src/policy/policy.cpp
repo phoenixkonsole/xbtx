@@ -151,7 +151,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
 
     // only ten OP_RAVEN_ASSET txout is permitted
     if (nAssetDataOut > 10) {
-        reason = "tomany-op-rvn-asset";
+        reason = "tomany-op-xbtx-asset";
         return false;
     }
 

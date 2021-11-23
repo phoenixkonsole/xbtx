@@ -772,7 +772,7 @@ BOOST_FIXTURE_TEST_SUITE(script_standard_tests, BasicTestingSetup)
             BOOST_CHECK(!isInvalid);
         }
 
-        // OP_RVN_ASSET at front of script
+        // OP_XBTX_ASSET at front of script
         {
             CBasicKeyStore keystore;
             keystore.AddKey(keys[0]);
