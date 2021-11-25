@@ -185,15 +185,22 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
 
             switch (type) {
                 case TX_NONSTANDARD:
+                    break;
                 case TX_PUBKEY:
+                    break;
                 case TX_PUBKEYHASH:
+                    break;
                 case TX_SCRIPTHASH:
+                    break;
                 case TX_MULTISIG:
+                    break;
                 case TX_NULL_DATA:
+                    break;
                 case TX_WITNESS_V0_SCRIPTHASH:
+                    break;
                 case TX_WITNESS_V0_KEYHASH:
+                    break;
                 case TX_RESTRICTED_ASSET_DATA:
-                default:
                     break;
                 case TX_NEW_ASSET:
                     if (IsAssetNameAnOwner(name)) {
