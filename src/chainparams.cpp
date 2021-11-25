@@ -149,7 +149,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 2016;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 8;  // Restricted assets
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 5544116233; // TODO Update when ready
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 5544116233; //TODO Block from which restricted assets start working 
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 5544116233; //TODO Update when ready
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 1613; //TODO Update when ready
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 2016; //TODO Update when ready
@@ -296,7 +296,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 2016;
         
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 7;  // Restricted assets
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 1559908800; // GMT Sun, Jun 07 2019 6:00:00 PM
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 1559908800; //Block from which restricted assets start working
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 1591531200; // GMT Sun, Jun 07 2020 6:00:00 PM
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 1310;
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 2016;
@@ -492,7 +492,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ASSETS].nOverrideMinerConfirmationWindow = 144;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].bit = 8;  // Restricted assets
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nStartTime = 0; //Block from which restricted assets start working
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideRuleChangeActivationThreshold = 108;
         consensus.vDeployments[Consensus::DEPLOYMENT_RESTRICTED_ASSETS].nOverrideMinerConfirmationWindow = 144;
@@ -608,13 +608,13 @@ public:
 
         /** XBTX Start **/
         // Burn Amounts
-        nIssueAssetBurnAmount = 500 * COIN;
+        nIssueAssetBurnAmount = 5 * COIN;
         nReissueAssetBurnAmount = 100 * COIN;
         nIssueSubAssetBurnAmount = 100 * COIN;
         nIssueUniqueAssetBurnAmount = 5 * COIN;
-        nIssueQualifierAssetBurnAmount = 1000 * COIN;
+        nIssueQualifierAssetBurnAmount = 50 * COIN;
         nIssueSubQualifierAssetBurnAmount = 100 * COIN;
-        nIssueRestrictedAssetBurnAmount = 1500 * COIN;
+        nIssueRestrictedAssetBurnAmount = 100 * COIN;
         nAddNullQualifierTagBurnAmount = .1 * COIN;
 
         // Burn Addresses
