@@ -575,6 +575,16 @@ public:
             pc += nSize;
         }
 
+        // If we see an op xbtx asset, we consider all data after it has data, and not op codes
+        // Move the pc to the end of the script
+        if (opcode == OP_XBTX_ASSET) {
+            unsigned int nSize = end() - pc;
+            if (pvchRet)
+                pvchRet->assign(pc, pc + nSize);
+            pc += nSize;
+        }
+
+
         opcodeRet = (opcodetype)opcode;
         return true;
     }
@@ -663,6 +673,10 @@ public:
     bool IsReissueAsset() const;
     bool IsTransferAsset() const;
     bool IsAsset() const;
+    bool IsNullAsset() const; // Checks all three of the NULL Asset Tx types
+    bool IsNullAssetTxDataScript() const;
+    bool IsNullAssetVerifierTxDataScript() const;
+    bool IsNullGlobalRestrictionAssetTxDataScript() const;
     /** XBTX END */
 
     /** Used for obsolete pay-to-pubkey addresses indexing. */

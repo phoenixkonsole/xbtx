@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
+#include <set>
 
 class CBlockIndex;
 class CCoinsViewCache;
@@ -19,11 +20,12 @@ class CValidationState;
 class CAssetsCache;
 class CTxOut;
 class uint256;
+class CMessage;
 
 /** Transaction validation functions */
 
 /** Context-independent validity checks */
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, CAssetsCache* assetCache = nullptr, bool fCheckDuplicateInputs=true, bool fMemPoolCheck=false, bool fCheckAssetDuplicate = true, bool fForceDuplicateCheck = true);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs=true);
 
 namespace Consensus {
 /**
@@ -35,7 +37,7 @@ namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee);
 
 /** XBTX START */
-bool CheckTxAssets(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, std::vector<std::pair<std::string, uint256> >& vPairReissueAssets, const bool fRunningUnitTests = false);
+bool CheckTxAssets(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, CAssetsCache* assetCache, bool fCheckMempool, std::vector<std::pair<std::string, uint256> >& vPairReissueAssets, const bool fRunningUnitTests = false, std::set<CMessage>* setMessages = nullptr, int64_t nBlocktime = 0);
 /** XBTX END */
 } // namespace Consensus
 

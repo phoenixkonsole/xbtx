@@ -244,18 +244,39 @@ void Shutdown()
         }
         delete pcoinsTip;
         pcoinsTip = nullptr;
+
         delete pcoinscatcher;
         pcoinscatcher = nullptr;
+
         delete pcoinsdbview;
         pcoinsdbview = nullptr;
+
         delete pblocktree;
         pblocktree = nullptr;
+
         delete passets;
         passets = nullptr;
+
         delete passetsdb;
         passetsdb = nullptr;
+
         delete passetsCache;
         passetsCache = nullptr;
+
+        delete passetsVerifierCache;
+        passetsVerifierCache = nullptr;
+
+        delete passetsQualifierCache;
+        passetsQualifierCache = nullptr;
+
+        delete passetsRestrictionCache;
+        passetsRestrictionCache = nullptr;
+
+        delete passetsGlobalRestrictionCache;
+        passetsGlobalRestrictionCache = nullptr;
+
+        delete prestricteddb;
+        prestricteddb = nullptr;
     }
 #ifdef ENABLE_WALLET
     StopWallets();
@@ -371,6 +392,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blockreconstructionextratxn=<n>", strprintf(_("Extra transactions to keep in memory for compact block reconstructions (default: %u)"), DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN));
     strUsage += HelpMessageOpt("-par=<n>", strprintf(_("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
         -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
+    strUsage += HelpMessageOpt("-bypassdownload", strprintf(_("When set, if the chain is in initialblockdownload the getblocktemplate rpc call will still return block data (default: %d)"), false));
 #ifndef WIN32
     strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), BitcoinSubsidium_PID_FILENAME));
 #endif
@@ -1448,12 +1470,31 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReset, dbMaxFileSize);
 
 
+                // Basic assets
                 delete passets;
                 delete passetsdb;
                 delete passetsCache;
+
+                // Restricted assets
+                delete prestricteddb;
+                delete passetsVerifierCache;
+                delete passetsQualifierCache;
+                delete passetsRestrictionCache;
+                delete passetsGlobalRestrictionCache;
+
+               // Basic assets
                 passetsdb = new CAssetsDB(nBlockTreeDBCache, false, fReset);
                 passets = new CAssetsCache();
                 passetsCache = new CLRUCache<std::string, CDatabasedAssetData>(MAX_CACHE_ASSETS_SIZE);
+
+                // Restricted assets
+                prestricteddb = new CRestrictedDB(nBlockTreeDBCache, false, fReset);
+                passetsVerifierCache = new CLRUCache<std::string, CNullAssetTxVerifierString>(
+                        MAX_CACHE_ASSETS_SIZE);
+                passetsQualifierCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+                passetsRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+                passetsGlobalRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+
 
                 // Read for fAssetIndex to make sure that we only load asset address balances if it if true
                 pblocktree->ReadFlag("assetindex", fAssetIndex);

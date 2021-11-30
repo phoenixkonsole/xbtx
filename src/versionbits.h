@@ -10,11 +10,13 @@
 #include <map>
 
 /** What block version to use for new blocks (pre versionbits) */
-static const int32_t VERSIONBITS_LAST_OLD_BLOCK_VERSION = 4;
+static const int32_t VERSIONBITS_LAST_OLD_BLOCK_VERSION = 5;
 /** What bits to set in version for versionbits blocks */
 static const int32_t VERSIONBITS_TOP_BITS = 0x20000000UL;
 /** What bits to set in the version for versionbits blocks after assets is active */
 static const int32_t VERSIONBITS_TOP_BITS_ASSETS = 0x30000000UL;
+/** What bits to set in the version for versionbits blocks after assets is active */
+static const int32_t VERSIONBITS_TOP_BITS_RESTRICTED = 0x50000000UL;
 /** What bits to set in the version for versionbits blocks to create for for scrypt^2 mining */
 static const int32_t VERSIONBITS_TOP_BITS_SCRYPT_2 = 0x40000000UL;
 /** What bitmask determines whether versionbits is in use */

@@ -44,7 +44,7 @@ public:
     bool DoS(int level, bool ret = false,
              unsigned int chRejectCodeIn=0, const std::string &strRejectReasonIn="",
              bool corruptionIn=false,
-             const std::string &strDebugMessageIn="") {
+             const std::string &strDebugMessageIn="", uint256 tx=uint256()) {
         chRejectCode = chRejectCodeIn;
         strRejectReason = strRejectReasonIn;
         corruptionPossible = corruptionIn;

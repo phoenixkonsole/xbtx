@@ -110,7 +110,12 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
             str += "[error]";
             return str;
         }
-        if (0 <= opcode && opcode <= OP_PUSHDATA4) {
+        if (opcode == OP_XBTX_ASSET) {
+            // Once we hit an OP_XBTX_ASSET, we know that all the next data should be considered as hex
+            str += GetOpName(opcode);
+            str += " ";
+            str += HexStr(vch);
+        } else if (0 <= opcode && opcode <= OP_PUSHDATA4) {
             if (vch.size() <= static_cast<std::vector<unsigned char>::size_type>(4)) {
                 str += strprintf("%d", CScriptNum(vch, false).getint());
             } else {
@@ -179,6 +184,24 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
             assetInfo.pushKV("amount", ValueFromAmount(amount));
 
             switch (type) {
+                case TX_NONSTANDARD:
+                    break;
+                case TX_PUBKEY:
+                    break;
+                case TX_PUBKEYHASH:
+                    break;
+                case TX_SCRIPTHASH:
+                    break;
+                case TX_MULTISIG:
+                    break;
+                case TX_NULL_DATA:
+                    break;
+                case TX_WITNESS_V0_SCRIPTHASH:
+                    break;
+                case TX_WITNESS_V0_KEYHASH:
+                    break;
+                case TX_RESTRICTED_ASSET_DATA:
+                    break;
                 case TX_NEW_ASSET:
                     if (IsAssetNameAnOwner(name)) {
                         // pwnd n00b
@@ -211,6 +234,34 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
         }
 
         out.pushKV("asset", assetInfo);
+    }
+
+    if (type == TX_RESTRICTED_ASSET_DATA) {
+        UniValue assetInfo(UniValue::VOBJ);
+        CNullAssetTxData data;
+        CNullAssetTxVerifierString verifierData;
+        std::string address;
+        if (AssetNullDataFromScript(scriptPubKey, data, address)) {
+            AssetType type;
+            IsAssetNameValid(data.asset_name, type);
+            if (type == AssetType::QUALIFIER || type == AssetType::SUB_QUALIFIER) {
+                assetInfo.pushKV("asset_name", data.asset_name);
+                assetInfo.pushKV("qualifier_type", data.flag ? "adding qualifier" : "removing qualifier");
+                assetInfo.pushKV("address", address);
+            } else if (type == AssetType::RESTRICTED) {
+                assetInfo.pushKV("asset_name", data.asset_name);
+                assetInfo.pushKV("restricted_type", data.flag ? "freezing address" : "unfreezing address");
+                assetInfo.pushKV("address", address);
+            }
+        } else if (GlobalAssetNullDataFromScript(scriptPubKey, data)) {
+            assetInfo.pushKV("restricted_name", data.asset_name);
+            assetInfo.pushKV("restricted_type", data.flag ? "freezing" : "unfreezing");
+            assetInfo.pushKV("address", "all addresses");
+        } else if (AssetNullVerifierDataFromScript(scriptPubKey, verifierData)) {
+            assetInfo.pushKV("verifier_string", verifierData.verifier_string);
+        }
+
+        out.pushKV("asset_data", assetInfo);
     }
      /** XBTX END */
 

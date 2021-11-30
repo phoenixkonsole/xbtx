@@ -59,7 +59,7 @@ BOOST_FIXTURE_TEST_SUITE(asset_reissue_tests, BasicTestingSetup)
 
         // Remove the reissue from the cache
         std::vector<std::pair<std::string, CBlockAssetUndo> > undoBlockData;
-        undoBlockData.emplace_back(std::make_pair("XBTXASSET", CBlockAssetUndo{true, false, "", 0}));
+        undoBlockData.emplace_back(std::make_pair("XBTXASSET", CBlockAssetUndo{true, false, "", 0, ASSET_UNDO_INCLUDES_VERIFIER_STRING, false, ""}));
         BOOST_CHECK_MESSAGE(cache.RemoveReissueAsset(reissue1, Params().GlobalBurnAddress(), out, undoBlockData), "Failed to remove reissue");
 
         // Get the asset data from the cache now that the reissuance was removed
@@ -97,22 +97,22 @@ BOOST_FIXTURE_TEST_SUITE(asset_reissue_tests, BasicTestingSetup)
         CReissueAsset reissue1("XBTXASSET", CAmount(1 * COIN), 8, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
         std::string error;
-        BOOST_CHECK_MESSAGE(reissue1.IsValid(error, cache), "Reissue should of been valid");
+        BOOST_CHECK_MESSAGE(ContextualCheckReissueAsset(&cache, reissue1, error), "Reissue should have been valid");
 
         // Create a reissuance of the asset that is not valid
         CReissueAsset reissue2("NOTEXIST", CAmount(1 * COIN), 8, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
-        BOOST_CHECK_MESSAGE(!reissue2.IsValid(error, cache), "Reissue shouldn't of been valid");
+        BOOST_CHECK_MESSAGE(!ContextualCheckReissueAsset(&cache, reissue2, error), "Reissue shouldn't of been valid");
 
         // Create a reissuance of the asset that is not valid (unit is smaller than current asset)
         CReissueAsset reissue3("XBTXASSET", CAmount(1 * COIN), 7, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
-        BOOST_CHECK_MESSAGE(!reissue3.IsValid(error, cache), "Reissue shouldn't of been valid because of units");
+        BOOST_CHECK_MESSAGE(!ContextualCheckReissueAsset(&cache, reissue3, error), "Reissue shouldn't of been valid because of units");
 
         // Create a reissuance of the asset that is not valid (unit is not changed)
         CReissueAsset reissue4("XBTXASSET", CAmount(1 * COIN), -1, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
-        BOOST_CHECK_MESSAGE(reissue4.IsValid(error, cache), "Reissue4 wasn't valid");
+        BOOST_CHECK_MESSAGE(ContextualCheckReissueAsset(&cache, reissue4, error), "Reissue4 wasn't valid");
 
         // Create a new asset object with units of 0
         CNewAsset asset2("XBTXASSET2", CAmount(100 * COIN), 0, 1, 0, "");
@@ -123,12 +123,12 @@ BOOST_FIXTURE_TEST_SUITE(asset_reissue_tests, BasicTestingSetup)
         // Create a reissuance of the asset that is valid unit go from 0 -> 1 and change the ipfs hash
         CReissueAsset reissue5("XBTXASSET2", CAmount(1 * COIN), 1, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
-        BOOST_CHECK_MESSAGE(reissue5.IsValid(error, cache), "Reissue5 wasn't valid");
+        BOOST_CHECK_MESSAGE(ContextualCheckReissueAsset(&cache, reissue5, error), "Reissue5 wasn't valid");
 
         // Create a reissuance of the asset that is valid unit go from 1 -> 1 and change the ipfs hash
         CReissueAsset reissue6("XBTXASSET2", CAmount(1 * COIN), 1, 1, DecodeIPFS("QmacSRmrkVmvJfbCpmU6pK72furJ8E8fbKHindrLxmYMQo"));
 
-        BOOST_CHECK_MESSAGE(reissue6.IsValid(error, cache), "Reissue6 wasn't valid");
+        BOOST_CHECK_MESSAGE(ContextualCheckReissueAsset(&cache, reissue6, error), "Reissue6 wasn't valid");
     }
 
 

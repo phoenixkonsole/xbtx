@@ -16,6 +16,7 @@
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 class CCoinsViewCache;
+class CNullAssetTxVerifierString;
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -333,6 +334,15 @@ public:
     bool VerifyNewUniqueAsset(std::string& strError) const;
     bool IsReissueAsset() const;
     bool VerifyReissueAsset(std::string& strError) const;
+    bool IsNewQualifierAsset() const;
+    bool VerifyNewQualfierAsset(std::string &strError) const;
+    bool IsNewRestrictedAsset() const;
+    bool VerifyNewRestrictedAsset(std::string& strError) const;
+
+    bool CheckAddingTagBurnFee(const int& count) const;
+
+    bool GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError) const;
+    bool GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError, bool& fNotFound) const;
     /** XBTX END */
 
     /**

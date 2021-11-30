@@ -2288,83 +2288,52 @@ void CWallet::AvailableCoinsAll(std::vector<COutput>& vCoins, std::map<std::stri
                 bool fSolvableIn = (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO;
 
                 std::string address;
-                CAssetTransfer assetTransfer;
-                CNewAsset asset;
-                CReissueAsset reissue;
-                std::string ownerName;
-                bool fWasNewAssetOutPoint = false;
-                bool fWasTransferAssetOutPoint = false;
-                bool fWasOwnerAssetOutPoint = false;
-                bool fWasReissueAssetOutPoint = false;
-                std::string strAssetName;
+
 
                 // Looking for Asset Tx OutPoints Only
                 if (fGetAssets && AreAssetsDeployed() && isAssetScript) {
-
-                    if ( nType == TX_TRANSFER_ASSET) {
-                        if (TransferAssetFromScript(pcoin->tx->vout[i].scriptPubKey, assetTransfer, address)) {
-                            strAssetName = assetTransfer.strName;
-                            fWasTransferAssetOutPoint = true;
-                        }
-                    } else if ( nType == TX_NEW_ASSET && !fIsOwner) {
-                        if (AssetFromScript(pcoin->tx->vout[i].scriptPubKey, asset, address)) {
-                            strAssetName = asset.strName;
-                            fWasNewAssetOutPoint = true;
-                        }
-                    } else if ( nType == TX_NEW_ASSET && fIsOwner) {
-                        if (OwnerAssetFromScript(pcoin->tx->vout[i].scriptPubKey, ownerName, address)) {
-                            strAssetName = ownerName;
-                            fWasOwnerAssetOutPoint = true;
-                        }
-                    } else if ( nType == TX_REISSUE_ASSET) {
-                        if (ReissueAssetFromScript(pcoin->tx->vout[i].scriptPubKey, reissue, address)) {
-                            strAssetName = reissue.strName;
-                            fWasReissueAssetOutPoint = true;
-                        }
-                    } else {
+                    CAssetOutputEntry output_data;
+                    if (!GetAssetData(pcoin->tx->vout[i].scriptPubKey, output_data))
                         continue;
+
+                    address = EncodeDestination(output_data.destination);
+
+                    // If we already have the maximum amount or size for this asset, skip it
+                    if (setAssetMaxFound.count(output_data.assetName))
+                        continue;
+
+                    if (IsAssetNameAnRestricted(output_data.assetName)) {
+                        if (passets->CheckForAddressRestriction(output_data.assetName, address, true)) {
+                            continue;
+                        }
                     }
 
-                    if (fWasNewAssetOutPoint || fWasTransferAssetOutPoint || fWasOwnerAssetOutPoint || fWasReissueAssetOutPoint) {
+                    // Initialize the map vector is it doesn't exist yet
+                    if (!mapAssetCoins.count(output_data.assetName)) {
+                        std::vector<COutput> vOutput;
+                        mapAssetCoins.insert(std::make_pair(output_data.assetName, vOutput));
+                    }
 
-                        // If we already have the maximum amount or size for this asset, skip it
-                        if (setAssetMaxFound.count(strAssetName))
-                            continue;
+                    // Add the COutput to the map of available Asset Coins
+                    mapAssetCoins.at(output_data.assetName).push_back(
+                            COutput(pcoin, i, nDepth, fSpendableIn, fSolvableIn, safeTx));
 
-                        // Initialize the map vector is it doesn't exist yet
-                        if (!mapAssetCoins.count(strAssetName)) {
-                            std::vector<COutput> vOutput;
-                            mapAssetCoins.insert(std::make_pair(strAssetName, vOutput));
-                        }
+                    // Initialize the map of current asset totals
+                    if (!mapAssetTotals.count(output_data.assetName))
+                        mapAssetTotals[output_data.assetName] = 0;
 
-                        // Add the COutput to the map of available Asset Coins
-                        mapAssetCoins.at(strAssetName).push_back(
-                                COutput(pcoin, i, nDepth, fSpendableIn, fSolvableIn, safeTx));
+                    // Update the map of totals depending the which type of asset tx we are looking at
+                    mapAssetTotals[output_data.assetName] += output_data.nAmount;
 
-                        // Initialize the map of current asset totals
-                        if (!mapAssetTotals.count(strAssetName))
-                            mapAssetTotals[strAssetName] = 0;
+                    // Checks the sum amount of all UTXO's, and adds to the set of assets that we found the max for
+                    if (nMinimumSumAmount != MAX_MONEY) {
+                        if (mapAssetTotals[output_data.assetName] >= nMinimumSumAmount)
+                            setAssetMaxFound.insert(output_data.assetName);
+                    }
 
-                        // Update the map of totals depending the which type of asset tx we are looking at
-                        if (fWasNewAssetOutPoint)
-                            mapAssetTotals[strAssetName] += asset.nAmount;
-                        else if (fWasTransferAssetOutPoint)
-                            mapAssetTotals[strAssetName] += assetTransfer.nAmount;
-                        else if (fWasReissueAssetOutPoint)
-                            mapAssetTotals[strAssetName] += reissue.nAmount;
-                        else if (fWasOwnerAssetOutPoint)
-                            mapAssetTotals[strAssetName] = OWNER_ASSET_AMOUNT;
-
-                        // Checks the sum amount of all UTXO's, and adds to the set of assets that we found the max for
-                        if (nMinimumSumAmount != MAX_MONEY) {
-                            if (mapAssetTotals[strAssetName] >= nMinimumSumAmount)
-                                setAssetMaxFound.insert(strAssetName);
-                        }
-
-                        // Checks the maximum number of UTXO's, and addes to set of of asset that we found the max for
-                        if (nMaximumCount > 0 && mapAssetCoins[strAssetName].size() >= nMaximumCount) {
-                            setAssetMaxFound.insert(strAssetName);
-                        }
+                    // Checks the maximum number of UTXO's, and addes to set of of asset that we found the max for
+                    if (nMaximumCount > 0 && mapAssetCoins[output_data.assetName].size() >= nMaximumCount) {
+                        setAssetMaxFound.insert(output_data.assetName);
                     }
                 }
 
@@ -3170,7 +3139,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
     for (const auto& recipient : vecSend)
     {
         /** XBTX START */
-        if (fTransferAsset || fReissueAsset || assetType == AssetType::SUB || assetType == AssetType::UNIQUE) {
+         if (fTransferAsset || fReissueAsset || assetType == AssetType::SUB || assetType == AssetType::UNIQUE || assetType == AssetType::SUB_QUALIFIER || assetType == AssetType::RESTRICTED) {
             CAssetTransfer assetTransfer;
             std::string address;
             if (TransferAssetFromScript(recipient.scriptPubKey, assetTransfer, address)) {
@@ -3250,7 +3219,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
             /** XBTX START */
             std::vector<COutput> vAvailableCoins;
             std::map<std::string, std::vector<COutput> > mapAssetCoins;
-            if (fTransferAsset || fReissueAsset || assetType == AssetType::SUB || assetType == AssetType::UNIQUE)
+            if (fTransferAsset || fReissueAsset || assetType == AssetType::SUB || assetType == AssetType::UNIQUE || assetType == AssetType::SUB_QUALIFIER || assetType == AssetType::RESTRICTED)
                 AvailableCoinsWithAssets(vAvailableCoins, mapAssetCoins, true, &coin_control);
             else
                 AvailableCoins(vAvailableCoins, true, &coin_control);
@@ -3259,6 +3228,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
             // TODO: pass in scriptChange instead of reservekey so
             // change transaction isn't always pay-to-BitcoinSubsidium-address
             CScript scriptChange;
+            CScript assetScriptChange;
 
             // coin control: send change to custom address
             if (!boost::get<CNoDestination>(&coin_control.destChange)) {
@@ -3272,6 +3242,14 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
 
                 scriptChange = GetScriptForDestination(keyID);
             }
+
+            /** XBTX START */
+            if (!boost::get<CNoDestination>(&coin_control.assetDestChange)) {
+                assetScriptChange = GetScriptForDestination(coin_control.assetDestChange);
+            } else {
+                assetScriptChange = scriptChange;
+            }
+            /** XBTX END */
 
             CTxOut change_prototype_txout(0, scriptChange);
             size_t change_prototype_size = GetSerializeSize(change_prototype_txout, SER_DISK, 0);
@@ -3300,6 +3278,15 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                 for (const auto& recipient : vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+                    
+                    /** XBTX START */
+                    // Check to see if you need to make an asset data outpoint OP_XBTX_ASSET data
+                    if (recipient.scriptPubKey.IsNullAssetTxDataScript()) {
+                        assert(txout.nValue == 0);
+                        txNew.vout.push_back(txout);
+                        continue;
+                    }
+                    /** XBTX END */
 
                     if (recipient.fSubtractFeeFromAmount)
                     {
@@ -3366,13 +3353,78 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
 
                     for (auto assetChange : mapAssetChange) {
                         if (assetChange.second > 0) {
-                            CScript scriptAssetChange = scriptChange;
-                            CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
+                            if (IsAssetNameAnRestricted(assetChange.first))
+                            {
+                                // Get the verifier string for the restricted asset
+                                CNullAssetTxVerifierString verifier;
+                                if (!passets->GetAssetVerifierStringIfExists(assetChange.first, verifier)) {
+                                    strFailReason = _("Verifier String for asset trasnfer, not found");
+                                    return false;
+                                }
 
-                            assetTransfer.ConstructTransaction(scriptAssetChange);
-                            CTxOut newAssetTxOut(0, scriptAssetChange);
+                                // Get the change address
+                                CTxDestination dest;
+                                if (!ExtractDestination(assetScriptChange, dest)) {
+                                    strFailReason = _("Failed to extract destination from change script");
+                                    return false;
+                                }
 
-                            txNew.vout.emplace_back(newAssetTxOut);
+                                std::string change_address = EncodeDestination(dest);
+                                bool fFoundValueChangeAddress = false;
+                                // Check the verifier string against the change address, if it fails, we will try to send the change back to the same input that created this transaction
+                                if (!ContextualCheckVerifierString(passets, verifier.verifier_string, change_address, strFailReason)) {
+                                    // Loop through all assets that are inputs into the transaction
+                                    for (auto asset: setAssets) {
+                                        if (asset.txout.scriptPubKey.IsAssetScript()) {
+                                            CAssetOutputEntry outputData;
+                                            if (!GetAssetData(asset.txout.scriptPubKey, outputData)) {
+                                                strFailReason = _("Failed to get asset data from script");
+                                                return false;
+                                            }
+
+                                            // If the asset names don't match, continue through the set of assets
+                                            if (outputData.assetName != assetChange.first)
+                                                continue;
+
+                                            std::string check_address = EncodeDestination(outputData.destination);
+
+                                            if (ContextualCheckVerifierString(passets, verifier.verifier_string, check_address, strFailReason)) {
+                                                fFoundValueChangeAddress = true;
+
+                                                CScript scriptAssetChange = GetScriptForDestination(outputData.destination);
+                                                CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
+
+                                                assetTransfer.ConstructTransaction(scriptAssetChange);
+                                                CTxOut newAssetTxOut(0, scriptAssetChange);
+
+                                                txNew.vout.emplace_back(newAssetTxOut);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } else  {
+                                    fFoundValueChangeAddress = true;
+                                    CScript scriptAssetChange = assetScriptChange;
+                                    CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
+
+                                    assetTransfer.ConstructTransaction(scriptAssetChange);
+                                    CTxOut newAssetTxOut(0, scriptAssetChange);
+
+                                    txNew.vout.emplace_back(newAssetTxOut);
+                                }
+                                if (!fFoundValueChangeAddress) {
+                                    strFailReason = _("Failed to find restricted asset change address from inputs");
+                                    return false;
+                                }
+                            } else {
+                                CScript scriptAssetChange = assetScriptChange;
+                                CAssetTransfer assetTransfer(assetChange.first, assetChange.second);
+
+                                assetTransfer.ConstructTransaction(scriptAssetChange);
+                                CTxOut newAssetTxOut(0, scriptAssetChange);
+
+                                txNew.vout.emplace_back(newAssetTxOut);
+                            }
                         }
                     }
                 }
@@ -3415,7 +3467,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                     if (fNewAsset) {
                         for (auto asset : assets) {
                             // Create the owner token output for non-unique assets
-                            if (assetType != AssetType::UNIQUE) {
+                            if (assetType != AssetType::UNIQUE && assetType != AssetType::QUALIFIER && assetType != AssetType::SUB_QUALIFIER && assetType != AssetType::RESTRICTED) {
                                 CScript ownerScript = GetScriptForDestination(destination);
                                 asset.ConstructOwnerTransaction(ownerScript);
                                 CTxOut ownerTxOut(0, ownerScript);
