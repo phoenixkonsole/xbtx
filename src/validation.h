@@ -550,14 +550,17 @@ bool DumpMempool();
 /** Load the mempool from disk. */
 bool LoadMempool();
 
-/** RVN START */
+/** XBTX START */
 bool AreAssetsDeployed();
+bool AreMessagesDeployed();
 bool AreRestrictedAssetsDeployed();
+
+bool IsRip5Active();
 
 bool IsDGWActive(unsigned int nBlockNumber);
 bool IsRestrictedActive(unsigned int nBlockNumber);
 
 CAssetsCache* GetCurrentAssetCache();
-/** RVN END */
+/** XBTX END */
 
 #endif // BitcoinSubsidium_VALIDATION_H

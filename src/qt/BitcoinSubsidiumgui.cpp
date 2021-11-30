@@ -52,13 +52,13 @@
 #include <QAction>
 #include <QApplication>
 #include <QDateTime>
-#include <QDesktopWidget>
 #include <QDragEnterEvent>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProgressDialog>
+#include <QScreen>
 #include <QSettings>
 #include <QShortcut>
 #include <QStackedWidget>
@@ -68,7 +68,7 @@
 #include <QToolBar>
 #include <QVBoxLayout>
 
-#if QT_VERSION < 0x050000
+#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
 #include <QTextDocument>
 #include <QUrl>
 #else
@@ -77,6 +77,10 @@
 #include <tinyformat.h>
 #include <QFontDatabase>
 
+#endif
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
+#define QTversionPreFiveEleven
 #endif
 
 const std::string BitcoinSubsidiumGUI::DEFAULT_UIPLATFORM =
@@ -133,6 +137,7 @@ BitcoinSubsidiumGUI::BitcoinSubsidiumGUI(const PlatformStyle *_platformStyle, co
     manageAssetAction(0),
     messagingAction(0),
     votingAction(0),
+    restrictedAssetAction(0),
     headerWidget(0),
     labelCurrentMarket(0),
     labelCurrentPrice(0),
@@ -153,7 +158,7 @@ BitcoinSubsidiumGUI::BitcoinSubsidiumGUI(const PlatformStyle *_platformStyle, co
     QSettings settings;
     if (!restoreGeometry(settings.value("MainWindowGeometry").toByteArray())) {
         // Restore failed (perhaps missing setting), center the window
-        move(QApplication::desktop()->availableGeometry().center() - frameGeometry().center());
+        move(QGuiApplication::primaryScreen()->availableGeometry().center() - frameGeometry().center());
     }
 
     QString windowTitle = tr(PACKAGE_NAME) + " - ";
@@ -391,21 +396,22 @@ void BitcoinSubsidiumGUI::createActions()
     tabGroup->addAction(historyAction);
 
     /** XBTX START */
-    transferAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_transfer_selected", ":/icons/asset_transfer"), tr("&Transfer Assets"), this);
-    transferAssetAction->setStatusTip(tr("Transfer assets to XBTX addresses"));
-    transferAssetAction->setToolTip(transferAssetAction->statusTip());
-    transferAssetAction->setCheckable(true);
-    transferAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
-    transferAssetAction->setFont(font);
-    tabGroup->addAction(transferAssetAction);
 
     createAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_create_selected", ":/icons/asset_create"), tr("&Create Assets"), this);
     createAssetAction->setStatusTip(tr("Create new main/sub/unique assets"));
     createAssetAction->setToolTip(createAssetAction->statusTip());
     createAssetAction->setCheckable(true);
-    createAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
+    createAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
     createAssetAction->setFont(font);
     tabGroup->addAction(createAssetAction);
+
+    transferAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_transfer_selected", ":/icons/asset_transfer"), tr("&Transfer Assets"), this);
+    transferAssetAction->setStatusTip(tr("Transfer assets to XBTX addresses"));
+    transferAssetAction->setToolTip(transferAssetAction->statusTip());
+    transferAssetAction->setCheckable(true);
+    transferAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
+    transferAssetAction->setFont(font);
+    tabGroup->addAction(transferAssetAction);
 
     manageAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_manage_selected", ":/icons/asset_manage"), tr("&Manage Assets"), this);
     manageAssetAction->setStatusTip(tr("Manage assets you are the administrator of"));
@@ -419,7 +425,7 @@ void BitcoinSubsidiumGUI::createActions()
     messagingAction->setStatusTip(tr("Coming Soon"));
     messagingAction->setToolTip(messagingAction->statusTip());
     messagingAction->setCheckable(true);
-    messagingAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_8));
+    //messagingAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_9));
     messagingAction->setFont(font);
     tabGroup->addAction(messagingAction);
 
@@ -427,9 +433,17 @@ void BitcoinSubsidiumGUI::createActions()
     votingAction->setStatusTip(tr("Coming Soon"));
     votingAction->setToolTip(votingAction->statusTip());
     votingAction->setCheckable(true);
-    votingAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_9));
+    //votingAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_V));
     votingAction->setFont(font);
     tabGroup->addAction(votingAction);
+
+    restrictedAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/edit"), tr("&Restricted Assets"), this);
+    restrictedAssetAction->setStatusTip(tr("Manage restricted assets"));
+    restrictedAssetAction->setToolTip(restrictedAssetAction->statusTip());
+    restrictedAssetAction->setCheckable(true);
+    restrictedAssetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_8));
+    restrictedAssetAction->setFont(font);
+    tabGroup->addAction(restrictedAssetAction);
 
     /** XBTX END */
 
@@ -454,6 +468,8 @@ void BitcoinSubsidiumGUI::createActions()
     connect(createAssetAction, SIGNAL(triggered()), this, SLOT(gotoCreateAssetsPage()));
     connect(manageAssetAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(manageAssetAction, SIGNAL(triggered()), this, SLOT(gotoManageAssetsPage()));
+    connect(restrictedAssetAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(restrictedAssetAction, SIGNAL(triggered()), this, SLOT(gotoRestrictedAssetsPage()));
     // TODO add messaging actions to go to messaging page when clicked
     // TODO add voting actions to go to voting page when clicked
 #endif // ENABLE_WALLET
@@ -611,6 +627,7 @@ void BitcoinSubsidiumGUI::createToolBars()
         toolbar->addAction(manageAssetAction);
 //        toolbar->addAction(messagingAction);
 //        toolbar->addAction(votingAction);
+        toolbar->addAction(restrictedAssetAction);
 
         QString openSansFontString = "font: normal 22pt \"Open Sans\";";
         QString normalString = "font: normal 22pt \"Arial\";";
@@ -887,6 +904,7 @@ void BitcoinSubsidiumGUI::setWalletActionsEnabled(bool enabled)
     manageAssetAction->setEnabled(false);
     messagingAction->setEnabled(false);
     votingAction->setEnabled(false);
+    restrictedAssetAction->setEnabled(false);
     /** XBTX END */
 }
 
@@ -1049,6 +1067,12 @@ void BitcoinSubsidiumGUI::gotoManageAssetsPage()
 {
     manageAssetAction->setChecked(true);
     if (walletFrame) walletFrame->gotoManageAssetsPage();
+};
+
+void BitcoinSubsidiumGUI::gotoRestrictedAssetsPage()
+{
+    restrictedAssetAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoRestrictedAssetsPage();
 };
 /** XBTX END */
 #endif // ENABLE_WALLET
@@ -1358,6 +1382,15 @@ void BitcoinSubsidiumGUI::checkAssets()
         createAssetAction->setToolTip(tr("Assets not yet active"));
         manageAssetAction->setDisabled(true);
         }
+
+    if (AreRestrictedAssetsDeployed) {
+        restrictedAssetAction->setDisabled(false);
+        restrictedAssetAction->setToolTip(tr("Manage restricted assets"));
+
+    } else {
+        restrictedAssetAction->setDisabled(true);
+        restrictedAssetAction->setToolTip(tr("Restricted Assets not yet active"));
+    }
 }
 #endif // ENABLE_WALLET
 
@@ -1570,7 +1603,11 @@ UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle *pl
     const QFontMetrics fm(font());
     for (const BitcoinSubsidiumUnits::Unit unit : units)
     {
-        max_width = qMax(max_width, fm.width(BitcoinSubsidiumUnits::name(unit)));
+        #ifndef QTversionPreFiveEleven
+        	max_width = qMax(max_width, fm.horizontalAdvance(BitcoinSubsidiumUnits::name(unit)));
+        #else
+        	max_width = qMax(max_width, fm.width(BitcoinSubsidiumUnits::name(unit)));
+        #endif
     }
     setMinimumSize(max_width, 0);
     setAlignment(Qt::AlignRight | Qt::AlignVCenter);

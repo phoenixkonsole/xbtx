@@ -272,7 +272,7 @@ BOOST_FIXTURE_TEST_SUITE(rpc_tests, TestingSetup)
         // Invalid, trailing garbage
         BOOST_CHECK_THROW(ParseNonRFCJSONValue("1.0sds"), std::runtime_error);
         BOOST_CHECK_THROW(ParseNonRFCJSONValue("1.0]"), std::runtime_error);
-        // RVN addresses should fail parsing
+        // XBTX addresses should fail parsing
         BOOST_CHECK_THROW(ParseNonRFCJSONValue("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"), std::runtime_error);
         BOOST_CHECK_THROW(ParseNonRFCJSONValue("3J98t1WpEZ73CNmQviecrnyiWrnqRhWNL"), std::runtime_error);
     }
@@ -294,7 +294,7 @@ BOOST_FIXTURE_TEST_SUITE(rpc_tests, TestingSetup)
         BOOST_CHECK_NO_THROW(CallRPC(std::string("setban 127.0.0.0 remove")));
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
         ar = r.get_array();
-        BOOST_CHECK_EQUAL(ar.size(), 0L);
+        BOOST_CHECK_EQUAL(ar.size(), (uint64_t)0L);
 
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/24 add 1607731200 true")));
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
@@ -324,7 +324,7 @@ BOOST_FIXTURE_TEST_SUITE(rpc_tests, TestingSetup)
         BOOST_CHECK_NO_THROW(CallRPC(std::string("setban 127.0.0.0/24 remove")));
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
         ar = r.get_array();
-        BOOST_CHECK_EQUAL(ar.size(), 0);
+        BOOST_CHECK_EQUAL(ar.size(), (uint64_t)0);
 
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/255.255.0.0 add")));
         BOOST_CHECK_THROW(r = CallRPC(std::string("setban 127.0.1.1 add")), std::runtime_error);
@@ -332,7 +332,7 @@ BOOST_FIXTURE_TEST_SUITE(rpc_tests, TestingSetup)
         BOOST_CHECK_NO_THROW(CallRPC(std::string("clearbanned")));
         BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
         ar = r.get_array();
-        BOOST_CHECK_EQUAL(ar.size(), 0);
+        BOOST_CHECK_EQUAL(ar.size(), (uint64_t)0);
 
 
         BOOST_CHECK_THROW(r = CallRPC(std::string("setban test add")), std::runtime_error); //invalid IP

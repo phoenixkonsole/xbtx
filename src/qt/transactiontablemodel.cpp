@@ -100,9 +100,9 @@ public:
         qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
 
         // Find bounds of this transaction in model
-        QList<TransactionRecord>::iterator lower = qLowerBound(
+        QList<TransactionRecord>::iterator lower = std::lower_bound(
             cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
-        QList<TransactionRecord>::iterator upper = qUpperBound(
+        QList<TransactionRecord>::iterator upper = std::upper_bound(
             cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
         int lowerIndex = (lower - cachedWallet.begin());
         int upperIndex = (upper - cachedWallet.begin());
@@ -734,7 +734,7 @@ QVariant TransactionTableModel::headerData(int section, Qt::Orientation orientat
             case Amount:
                 return tr("Amount removed from or added to balance.");
             case AssetName:
-                return tr("The asset (or RVN) removed or added to balance.");
+                return tr("The asset (or XBTX) removed or added to balance.");
             }
         }
     }
