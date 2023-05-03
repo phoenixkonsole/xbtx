@@ -1,7 +1,7 @@
 BitcoinSubsidium Core integration/staging tree
 =====================================
 
-https://BitcoinSubsidiumcoin.org
+https://Bitcoin-Subsidium.org
 
 What is BitcoinSubsidiumcoin?
 ----------------
