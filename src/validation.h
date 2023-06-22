@@ -35,6 +35,7 @@
 #include <atomic>
 #include <assets/assets.h>
 #include <assets/assetdb.h>
+#include <assets/restricteddb.h>
 
 class CBlockIndex;
 class CBlockTreeDB;
@@ -201,6 +202,9 @@ extern size_t nCoinCacheUsage;
 extern CFeeRate minRelayTxFee;
 /** Absolute maximum transaction fee (in satoshis) used by wallet and mempool (rejects high fee in sendrawtransaction) */
 extern CAmount maxTxFee;
+
+extern bool fUnitTest;
+
 /** If the tip is older than this (in seconds), the node is considered to be in initial block download. */
 extern int64_t nMaxTipAge;
 extern bool fEnableReplacement;
@@ -438,7 +442,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 /** Functions for validating blocks and updating the block tree */
 
 /** Context-independent validity checks */
-bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckAssetDuplicate = true, bool fForceDuplicateCheck = true);
+bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
@@ -490,14 +494,30 @@ extern CCoinsViewCache *pcoinsTip;
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;
 
-/** RVN START */
+/** XBTX START */
 /** Global variable that point to the active assets database (protexted by cs_main) */
 extern CAssetsDB *passetsdb;
 /** Global variable that point to the active assets (protexted by cs_main) */
 extern CAssetsCache *passets;
 /** Global variable that point to the assets LRU Cache (protexted by cs_main) */
 extern CLRUCache<std::string, CDatabasedAssetData> *passetsCache;
-/** RVN END */
+
+/** Global variable that points to the active restricted asset database (protected by cs_main) */
+extern CRestrictedDB *prestricteddb;
+
+/** Global variable that points to the asset verifier LRU Cache (protected by cs_main) */
+extern CLRUCache<std::string, CNullAssetTxVerifierString> *passetsVerifierCache;
+
+/** Global variable that points to the asset address qualifier LRU Cache (protected by cs_main) */
+extern CLRUCache<std::string, int8_t> *passetsQualifierCache; // hash(address,qualifier_name) ->int8_t
+
+/** Global variable that points to the asset address restriction LRU Cache (protected by cs_main) */
+extern CLRUCache<std::string, int8_t> *passetsRestrictionCache; // hash(address,qualifier_name) ->int8_t
+
+/** Global variable that points to the global asset restriction LRU Cache (protected by cs_main) */
+extern CLRUCache<std::string, int8_t> *passetsGlobalRestrictionCache;
+
+/** XBTX END */
 
 /**
  * Return the spend height, which is one more than the inputs.GetBestBlock().
@@ -530,12 +550,17 @@ bool DumpMempool();
 /** Load the mempool from disk. */
 bool LoadMempool();
 
-/** RVN START */
+/** XBTX START */
 bool AreAssetsDeployed();
+bool AreMessagesDeployed();
+bool AreRestrictedAssetsDeployed();
+
+bool IsRip5Active();
 
 bool IsDGWActive(unsigned int nBlockNumber);
+bool IsRestrictedActive(unsigned int nBlockNumber);
 
 CAssetsCache* GetCurrentAssetCache();
-/** RVN END */
+/** XBTX END */
 
 #endif // BitcoinSubsidium_VALIDATION_H

@@ -227,6 +227,30 @@ bool SendAssetsEntry::validate()
         retval = false;
     }
 
+    std::string assetName = ui->assetSelectionBox->currentText().toStdString();
+    if (IsAssetNameAnRestricted(assetName)) {
+        if (passets) {
+            if (passets->CheckForGlobalRestriction(assetName)) {
+                ui->assetSelectionBox->lineEdit()->setStyleSheet(STYLE_INVALID);
+                ui->messageTextLabel->show();
+                ui->messageTextLabel->setText(tr("This restricted asset have been frozen globally. No transfers can't we sent on the network."));
+                retval = false;
+            }
+
+            CNullAssetTxVerifierString verifier;
+            if (passets->GetAssetVerifierStringIfExists(assetName, verifier)) {
+                std::string strError = "";
+                ErrorReport report;
+                if (!ContextualCheckVerifierString(passets, verifier.verifier_string,ui->payTo->text().toStdString(), strError, &report)) {
+                    ui->payTo->setValid(false);
+                    ui->messageTextLabel->show();
+                    ui->messageTextLabel->setText(QString::fromStdString(GetUserErrorString(report)));
+                    retval = false;
+                }
+            }
+        }
+    }
+    
     // TODO check to make sure the payAmount value is within the constraints of how much you own
 
     return retval;

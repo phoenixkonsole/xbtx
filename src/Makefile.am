@@ -89,6 +89,7 @@ BitcoinSubsidium_CORE_H = \
   assets/assets.h \
   assets/assetdb.h \
   assets/assettypes.h \
+  assets/restricteddb.h \
   base58.h \
   bloom.h \
   blockencodings.h \
@@ -216,6 +217,7 @@ libBitcoinSubsidium_server_a_SOURCES = \
   assets/assets.cpp \
   assets/assetdb.cpp \
   assets/assettypes.cpp \
+  assets/restricteddb.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
   policy/rbf.cpp \
@@ -374,7 +376,9 @@ libBitcoinSubsidium_consensus_a_SOURCES = \
   uint256.h \
   utilstrencodings.cpp \
   utilstrencodings.h \
-  version.h
+  version.h \
+  LibBoolEE.cpp \
+  LibBoolEE.h
 
 # common: shared between BitcoinSubsidiumd, and BitcoinSubsidium-qt and non-server tools
 libBitcoinSubsidium_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BitcoinSubsidium_INCLUDES)

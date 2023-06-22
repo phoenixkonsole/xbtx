@@ -28,11 +28,15 @@
 #include "utilmoneystr.h"
 #include "coins.h"
 #include "wallet/wallet.h"
+#include "LibBoolEE.h"
 
 std::map<uint256, std::string> mapReissuedTx;
 std::map<std::string, uint256> mapReissuedAssets;
 
 // excluding owner tag ('!')
+#define OFFSET_THREE 3
+#define OFFSET_FOUR 4
+#define OFFSET_TWENTY_THREE 23
 static const auto MAX_NAME_LENGTH = 31;
 static const auto MAX_CHANNEL_NAME_LENGTH = 12;
 
@@ -43,21 +47,34 @@ static const std::regex UNIQUE_TAG_CHARACTERS("^[-A-Za-z0-9@$%&*()[\\]{}_.?:]+$"
 static const std::regex CHANNEL_TAG_CHARACTERS("^[A-Z0-9._]+$");
 static const std::regex VOTE_TAG_CHARACTERS("^[A-Z0-9._]+$");
 
+// Restricted assets
+static const std::regex QUALIFIER_NAME_CHARACTERS("#[A-Z0-9._]{3,}$");
+static const std::regex SUB_QUALIFIER_NAME_CHARACTERS("#[A-Z0-9._]+$");
+static const std::regex RESTRICTED_NAME_CHARACTERS("\\$[A-Z0-9._]{3,}$");
+
 static const std::regex DOUBLE_PUNCTUATION("^.*[._]{2,}.*$");
 static const std::regex LEADING_PUNCTUATION("^[._].*$");
 static const std::regex TRAILING_PUNCTUATION("^.*[._]$");
+static const std::regex QUALIFIER_LEADING_PUNCTUATION("^[#\\$][._].*$"); // Used for qualifier assets, and restricted asset only
 
 static const std::string SUB_NAME_DELIMITER = "/";
 static const std::string UNIQUE_TAG_DELIMITER = "#";
 static const std::string CHANNEL_TAG_DELIMITER = "~";
 static const std::string VOTE_TAG_DELIMITER = "^";
+static const std::string RESTRICTED_TAG_DELIMITER = "$";
+
+static const char RESTRICTED_TAG_CHAR = '$';
 
 static const std::regex UNIQUE_INDICATOR(R"(^[^^~#!]+#[^~#!\/]+$)");
 static const std::regex CHANNEL_INDICATOR(R"(^[^^~#!]+~[^~#!\/]+$)");
 static const std::regex OWNER_INDICATOR(R"(^[^^~#!]+!$)");
 static const std::regex VOTE_INDICATOR(R"(^[^^~#!]+\^[^~#!\/]+$)");
 
-static const std::regex BitcoinSubsidium_NAMES("^XBTX$|^BitcoinSubsidium$|^BitcoinSubsidiumCOIN$");
+static const std::regex QUALIFIER_INDICATOR("^[#][A-Z0-9._]{3,}$"); // Starts with #
+static const std::regex SUB_QUALIFIER_INDICATOR("^#[A-Z0-9._]+\\/#[A-Z0-9._]+$"); // Starts with #
+static const std::regex RESTRICTED_INDICATOR("^[\\$][A-Z0-9._]{3,}$"); // Starts with $
+
+static const std::regex BitcoinSubsidium_NAMES("^XBTX$|^BitcoinSubsidium$|^BitcoinSubsidiumCOIN$|^#XBTX$|^#BitcoinSubsidium$|^#BitcoinSubsidiumCOIN$");
 
 bool IsRootNameValid(const std::string& name)
 {
@@ -68,12 +85,62 @@ bool IsRootNameValid(const std::string& name)
         && !std::regex_match(name, BitcoinSubsidium_NAMES);
 }
 
+bool IsQualifierNameValid(const std::string& name)
+{
+    return std::regex_match(name, QUALIFIER_NAME_CHARACTERS)
+           && !std::regex_match(name, DOUBLE_PUNCTUATION)
+           && !std::regex_match(name, QUALIFIER_LEADING_PUNCTUATION)
+           && !std::regex_match(name, TRAILING_PUNCTUATION)
+           && !std::regex_match(name, BitcoinSubsidium_NAMES);
+}
+
+bool IsRestrictedNameValid(const std::string& name)
+{
+    return std::regex_match(name, RESTRICTED_NAME_CHARACTERS)
+           && !std::regex_match(name, DOUBLE_PUNCTUATION)
+           && !std::regex_match(name, LEADING_PUNCTUATION)
+           && !std::regex_match(name, TRAILING_PUNCTUATION)
+           && !std::regex_match(name, BitcoinSubsidium_NAMES);
+}
+
+bool IsSubQualifierNameValid(const std::string& name)
+{
+    return std::regex_match(name, SUB_QUALIFIER_NAME_CHARACTERS)
+           && !std::regex_match(name, DOUBLE_PUNCTUATION)
+           && !std::regex_match(name, LEADING_PUNCTUATION)
+           && !std::regex_match(name, TRAILING_PUNCTUATION);
+}
+
 bool IsSubNameValid(const std::string& name)
 {
     return std::regex_match(name, SUB_NAME_CHARACTERS)
         && !std::regex_match(name, DOUBLE_PUNCTUATION)
         && !std::regex_match(name, LEADING_PUNCTUATION)
         && !std::regex_match(name, TRAILING_PUNCTUATION);
+}
+
+bool IsQualifierNameValidBeforeTag(const std::string& name)
+{
+    std::vector<std::string> parts;
+    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+
+    if (!IsQualifierNameValid(parts.front())) return false;
+
+    // Qualifiers can only have one sub qualifier under it
+    if (parts.size() > 2) {
+        return false;
+    }
+
+    if (parts.size() > 1)
+    {
+
+        for (unsigned long i = 1; i < parts.size(); i++)
+        {
+            if (!IsSubQualifierNameValid(parts[i])) return false;
+        }
+    }
+
+    return true;
 }
 
 bool IsUniqueTagValid(const std::string& tag)
@@ -122,9 +189,26 @@ bool IsAssetNameASubasset(const std::string& name)
     return parts.size() > 1;
 }
 
-bool IsAssetNameValid(const std::string& name, AssetType& assetType, std::string& error)
+bool IsAssetNameASubQualifier(const std::string& name)
 {
+    std::vector<std::string> parts;
+    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+
+    if (!IsQualifierNameValid(parts.front())) return false;
+
+    return parts.size() > 1;
+}
+
+
+bool IsAssetNameValid(const std::string& name, AssetType& assetType, std::string& error)
+{   
+    // Do a max length check first to stop the possibility of a stack exhaustion.
+    // We check for a value that is larger than the max asset name
+    if (name.length() > 40)
+        return false;
+
     assetType = AssetType::INVALID;
+
     if (std::regex_match(name, UNIQUE_INDICATOR))
     {
         bool ret = IsTypeCheckNameValid(AssetType::UNIQUE, name, error);
@@ -157,6 +241,36 @@ bool IsAssetNameValid(const std::string& name, AssetType& assetType, std::string
 
         return ret;
     }
+    else if (std::regex_match(name, QUALIFIER_INDICATOR))
+    {
+        bool ret = IsTypeCheckNameValid(AssetType::QUALIFIER, name, error);
+        if (ret) {
+            if (IsAssetNameASubQualifier(name))
+                assetType = AssetType::SUB_QUALIFIER;
+            else
+                assetType = AssetType::QUALIFIER;
+        }
+
+        return ret;
+    }
+    else if (std::regex_match(name, SUB_QUALIFIER_INDICATOR))
+    {
+        bool ret = IsTypeCheckNameValid(AssetType::SUB_QUALIFIER, name, error);
+        if (ret) {
+            if (IsAssetNameASubQualifier(name))
+                assetType = AssetType::SUB_QUALIFIER;
+        }
+
+        return ret;
+    }
+    else if (std::regex_match(name, RESTRICTED_INDICATOR))
+    {
+        bool ret = IsTypeCheckNameValid(AssetType::RESTRICTED, name, error);
+        if (ret)
+            assetType = AssetType::RESTRICTED;
+
+        return ret;
+    }
     else
     {
         auto type = IsAssetNameASubasset(name) ? AssetType::SUB : AssetType::ROOT;
@@ -181,9 +295,29 @@ bool IsAssetNameValid(const std::string& name, AssetType& assetType)
     return IsAssetNameValid(name, assetType, _error);
 }
 
+bool IsAssetNameARoot(const std::string& name)
+{
+    AssetType type;
+    return IsAssetNameValid(name, type) && type == AssetType::ROOT;
+}
+
 bool IsAssetNameAnOwner(const std::string& name)
 {
     return IsAssetNameValid(name) && std::regex_match(name, OWNER_INDICATOR);
+}
+
+bool IsAssetNameAnRestricted(const std::string& name)
+{
+    return IsAssetNameValid(name) && std::regex_match(name, RESTRICTED_INDICATOR);
+}
+
+bool IsAssetNameAQualifier(const std::string& name, bool fOnlyQualifiers)
+{
+    if (fOnlyQualifiers) {
+        return IsAssetNameValid(name) && std::regex_match(name, QUALIFIER_INDICATOR);
+    }
+
+    return IsAssetNameValid(name) && (std::regex_match(name, QUALIFIER_INDICATOR) || std::regex_match(name, SUB_QUALIFIER_INDICATOR));
 }
 
 // TODO get the string translated below
@@ -216,6 +350,16 @@ bool IsTypeCheckNameValid(const AssetType type, const std::string& name, std::st
         bool valid = IsNameValidBeforeTag(parts.front()) && IsVoteTagValid(parts.back());
         if (!valid) { error = "Vote name contains invalid characters (Valid characters are: A-Z 0-9 _ .) (special characters can't be the first or last characters)";  return false; }
         return true;
+    } else if (type == AssetType::QUALIFIER || type == AssetType::SUB_QUALIFIER) {
+        if (name.size() > MAX_NAME_LENGTH) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH); return false; }
+        bool valid = IsQualifierNameValidBeforeTag(name);
+        if (!valid) { error = "Qualifier name contains invalid characters (Valid characters are: A-Z 0-9 _ .) (# must be the first character, _ . special characters can't be the first or last characters)";  return false; }
+        return true;
+    } else if (type == AssetType::RESTRICTED) {
+        if (name.size() > MAX_NAME_LENGTH) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH); return false; }
+        bool valid = IsRestrictedNameValid(name);
+        if (!valid) { error = "Restricted name contains invalid characters (Valid characters are: A-Z 0-9 _ .) ($ must be the first character, _ . special characters can't be the first or last characters)";  return false; }
+        return true;
     } else {
         if (name.size() > MAX_NAME_LENGTH - 1) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH - 1); return false; }  //Assets and sub-assets need to leave one extra char for OWNER indicator
         if (!IsAssetNameASubasset(name) && name.size() < MIN_ASSET_LENGTH) { error = "Name must be contain " + std::to_string(MIN_ASSET_LENGTH) + " characters"; return false; }
@@ -224,6 +368,18 @@ bool IsTypeCheckNameValid(const AssetType type, const std::string& name, std::st
         if (!valid) { error = "Name contains invalid characters (Valid characters are: A-Z 0-9 _ .) (special characters can't be the first or last characters)";  return false; }
         return true;
     }
+}
+
+std::string RestrictedNameToOwnerName(const std::string& name)
+{
+    if (!IsAssetNameAnRestricted(name)) {
+        return "";
+    }
+
+    std::string temp_owner = name.substr(1,name.length());
+    temp_owner = temp_owner + OWNER_TAG;
+
+    return temp_owner;
 }
 
 std::string GetParentName(const std::string& name)
@@ -241,8 +397,15 @@ std::string GetParentName(const std::string& name)
         index = name.find_last_of(CHANNEL_TAG_DELIMITER);
     } else if (type == AssetType::VOTE) {
         index = name.find_last_of(VOTE_TAG_DELIMITER);
-    } else if (type == AssetType::ROOT)
+    } else if (type == AssetType::ROOT) {
         return name;
+    } else if (type == AssetType::QUALIFIER) {
+        return name;
+    } else if (type == AssetType::SUB_QUALIFIER) {
+        index = name.find_last_of(SUB_NAME_DELIMITER);
+    } else if (type == AssetType::RESTRICTED) {
+        return name;
+    }
 
     if (std::string::npos != index)
     {
@@ -268,93 +431,7 @@ bool CNewAsset::IsNull() const
     return strName == "";
 }
 
-bool CNewAsset::IsValid(std::string& strError, CAssetsCache& assetCache, bool fCheckMempool, bool fCheckDuplicateInputs, bool fForceDuplicateCheck) const
-{
-    strError = "";
 
-    // Check our current passets to see if the asset has been created yet
-    if (fCheckDuplicateInputs) {
-        if (assetCache.CheckIfAssetExists(this->strName, fForceDuplicateCheck)) {
-            strError = std::string(_("Invalid parameter: asset_name '")) + strName + std::string(_("' has already been used"));
-            return false;
-        }
-    }
-
-    if (fCheckMempool) {
-        if (mempool.mapAssetToHash.count(strName)) {
-            strError = _("Asset with this name is already in the mempool");
-            return false;
-        }
-    }
-
-    AssetType assetType;
-    if (!IsAssetNameValid(std::string(strName), assetType)) {
-        strError = _("Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.");
-        return false;
-    }
-
-    if (assetType == AssetType::UNIQUE) {
-        if (units != UNIQUE_ASSET_UNITS) {
-            strError = _("Invalid parameter: units must be ") + std::to_string(UNIQUE_ASSET_UNITS / COIN);
-            return false;
-        }
-        if (nAmount != UNIQUE_ASSET_AMOUNT) {
-            strError = _("Invalid parameter: amount must be ") + std::to_string(UNIQUE_ASSET_AMOUNT);
-            return false;
-        }
-        if (nReissuable != 0) {
-            strError = _("Invalid parameter: reissuable must be 0");
-            return false;
-        }
-    }
-
-    if (IsAssetNameAnOwner(std::string(strName))) {
-        strError = _("Invalid parameters: asset_name can't have a '!' at the end of it. See help for more details.");
-        return false;
-    }
-
-    if (nAmount <= 0) {
-        strError = _("Invalid parameter: asset amount can't be equal to or less than zero.");
-        return false;
-    }
-
-    if (nAmount > MAX_MONEY) {
-        strError = _("Invalid parameter: asset amount greater than max money: ") + std::to_string(MAX_MONEY / COIN);
-        return false;
-    }
-
-    if (units < 0 || units > 8) {
-        strError = _("Invalid parameter: units must be between 0-8.");
-        return false;
-    }
-
-    if (!CheckAmountWithUnits(nAmount, units)) {
-        strError = _("Invalid parameter: amount must be divisible by the smaller unit assigned to the asset");
-        return false;
-    }
-
-    if (nReissuable != 0 && nReissuable != 1) {
-        strError = _("Invalid parameter: reissuable must be 0 or 1");
-        return false;
-    }
-
-    if (nHasIPFS != 0 && nHasIPFS != 1) {
-        strError = _("Invalid parameter: has_ipfs must be 0 or 1.");
-        return false;
-    }
-
-    if (nHasIPFS && strIPFSHash.size() != 34) {
-        strError = _("Invalid parameter: ipfs_hash must be 34 bytes.");
-        return false;
-    }
-
-    if (nHasIPFS) {
-        if (!CheckEncodedIPFS(EncodeIPFS(strIPFSHash), strError))
-            return false;
-    }
-
-    return true;
-}
 
 CNewAsset::CNewAsset(const CNewAsset& asset)
 {
@@ -498,6 +575,30 @@ bool UniqueAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::s
     return AssetFromScript(scriptPubKey, asset, strAddress);
 }
 
+bool QualifierAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
+{
+    // Check to see if the transaction is an new asset qualifier issue tx
+    if (!tx.IsNewQualifierAsset())
+        return false;
+
+    // Get the scriptPubKey from the last tx in vout
+    CScript scriptPubKey = tx.vout[tx.vout.size() - 1].scriptPubKey;
+
+    return QualifierAssetFromScript(scriptPubKey, asset, strAddress);
+}
+
+bool RestrictedAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
+{
+    // Check to see if the transaction is an new asset qualifier issue tx
+    if (!tx.IsNewRestrictedAsset())
+        return false;
+
+    // Get the scriptPubKey from the last tx in vout
+    CScript scriptPubKey = tx.vout[tx.vout.size() - 1].scriptPubKey;
+
+    return RestrictedAssetFromScript(scriptPubKey, asset, strAddress);
+}
+
 bool IsNewOwnerTxValid(const CTransaction& tx, const std::string& assetName, const std::string& address, std::string& errorMsg)
 {
     // TODO when ready to ship. Put the owner validation code in own method if needed
@@ -531,8 +632,9 @@ bool IsNewOwnerTxValid(const CTransaction& tx, const std::string& assetName, con
 bool OwnerFromTransaction(const CTransaction& tx, std::string& ownerName, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset issue tx
-    if (!tx.IsNewAsset())
+    if (!tx.IsNewAsset()) {
         return false;
+    }
 
     // Get the scriptPubKey from the last tx in vout
     CScript scriptPubKey = tx.vout[tx.vout.size() - 2].scriptPubKey;
@@ -543,8 +645,9 @@ bool OwnerFromTransaction(const CTransaction& tx, std::string& ownerName, std::s
 bool TransferAssetFromScript(const CScript& scriptPubKey, CAssetTransfer& assetTransfer, std::string& strAddress)
 {
     int nStartingIndex = 0;
-    if (!IsScriptTransferAsset(scriptPubKey, nStartingIndex))
+    if (!IsScriptTransferAsset(scriptPubKey, nStartingIndex)) {
         return false;
+    }
 
     CTxDestination destination;
     ExtractDestination(scriptPubKey, destination);
@@ -590,6 +693,56 @@ bool AssetFromScript(const CScript& scriptPubKey, CNewAsset& assetNew, std::stri
     return true;
 }
 
+bool QualifierAssetFromScript(const CScript& scriptPubKey, CNewAsset& assetNew, std::string& strAddress)
+{
+    int nStartingIndex = 0;
+    if (!IsScriptNewQualifierAsset(scriptPubKey, nStartingIndex))
+        return false;
+
+    CTxDestination destination;
+    ExtractDestination(scriptPubKey, destination);
+
+    strAddress = EncodeDestination(destination);
+
+    std::vector<unsigned char> vchNewAsset;
+    vchNewAsset.insert(vchNewAsset.end(), scriptPubKey.begin() + nStartingIndex, scriptPubKey.end());
+    CDataStream ssAsset(vchNewAsset, SER_NETWORK, PROTOCOL_VERSION);
+
+    try {
+        ssAsset >> assetNew;
+    } catch(std::exception& e) {
+        std::cout << "Failed to get the qualifier asset from the stream: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool RestrictedAssetFromScript(const CScript& scriptPubKey, CNewAsset& assetNew, std::string& strAddress)
+{
+    int nStartingIndex = 0;
+    if (!IsScriptNewRestrictedAsset(scriptPubKey, nStartingIndex))
+        return false;
+
+    CTxDestination destination;
+    ExtractDestination(scriptPubKey, destination);
+
+    strAddress = EncodeDestination(destination);
+
+    std::vector<unsigned char> vchNewAsset;
+    vchNewAsset.insert(vchNewAsset.end(), scriptPubKey.begin() + nStartingIndex, scriptPubKey.end());
+    CDataStream ssAsset(vchNewAsset, SER_NETWORK, PROTOCOL_VERSION);
+
+    try {
+        ssAsset >> assetNew;
+    } catch(std::exception& e) {
+        std::cout << "Failed to get the restricted asset from the stream: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 bool OwnerAssetFromScript(const CScript& scriptPubKey, std::string& assetName, std::string& strAddress)
 {
     int nStartingIndex = 0;
@@ -609,6 +762,71 @@ bool OwnerAssetFromScript(const CScript& scriptPubKey, std::string& assetName, s
         ssOwner >> assetName;
     } catch(std::exception& e) {
         std::cout << "Failed to get the owner asset from the stream: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool AssetNullDataFromScript(const CScript& scriptPubKey, CNullAssetTxData& assetData, std::string& strAddress)
+{
+    if (!scriptPubKey.IsNullAssetTxDataScript()) {
+        return false;
+    }
+
+    CTxDestination destination;
+    ExtractDestination(scriptPubKey, destination);
+
+    strAddress = EncodeDestination(destination);
+
+    std::vector<unsigned char> vchAssetData;
+    vchAssetData.insert(vchAssetData.end(), scriptPubKey.begin() + OFFSET_TWENTY_THREE, scriptPubKey.end());
+    CDataStream ssData(vchAssetData, SER_NETWORK, PROTOCOL_VERSION);
+
+    try {
+        ssData >> assetData;
+    } catch(std::exception& e) {
+        std::cout << "Failed to get the asset tx data from the stream: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool GlobalAssetNullDataFromScript(const CScript& scriptPubKey, CNullAssetTxData& assetData)
+{
+    if (!scriptPubKey.IsNullGlobalRestrictionAssetTxDataScript()) {
+        return false;
+    }
+
+    std::vector<unsigned char> vchAssetData;
+    vchAssetData.insert(vchAssetData.end(), scriptPubKey.begin() + OFFSET_FOUR, scriptPubKey.end());
+    CDataStream ssData(vchAssetData, SER_NETWORK, PROTOCOL_VERSION);
+
+    try {
+        ssData >> assetData;
+    } catch(std::exception& e) {
+        std::cout << "Failed to get the global restriction asset tx data from the stream: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool AssetNullVerifierDataFromScript(const CScript& scriptPubKey, CNullAssetTxVerifierString& verifierData)
+{
+    if (!scriptPubKey.IsNullAssetVerifierTxDataScript()) {
+        return false;
+    }
+
+    std::vector<unsigned char> vchAssetData;
+    vchAssetData.insert(vchAssetData.end(), scriptPubKey.begin() + OFFSET_THREE, scriptPubKey.end());
+    CDataStream ssData(vchAssetData, SER_NETWORK, PROTOCOL_VERSION);
+
+    try {
+        ssData >> verifierData;
+    } catch(std::exception& e) {
+        std::cout << "Failed to get the verifier string from the stream: " << e.what() << std::endl;
         return false;
     }
 
@@ -640,9 +858,18 @@ bool ReissueAssetFromScript(const CScript& scriptPubKey, CReissueAsset& reissue,
     return true;
 }
 
+
 //! Call VerifyNewAsset if this function returns true
 bool CTransaction::IsNewAsset() const
 {
+    // New Asset transaction will always have at least three outputs.
+    // 1. Owner Token output
+    // 2. Issue Asset output
+    // 3. XBTX Burn Fee
+    if (vout.size() < 3) {
+        return false;
+    }
+
     // Check for the assets data CTxOut. This will always be the last output in the transaction
     if (!CheckIssueDataTx(vout[vout.size() - 1]))
         return false;
@@ -652,7 +879,8 @@ bool CTransaction::IsNewAsset() const
         return false;
 
     // Don't overlap with IsNewUniqueAsset()
-    if (IsScriptNewUniqueAsset(vout[vout.size() - 1].scriptPubKey))
+    CScript script = vout[vout.size() - 1].scriptPubKey;
+    if (IsScriptNewUniqueAsset(script)|| IsScriptNewRestrictedAsset(script))
         return false;
 
     return true;
@@ -817,7 +1045,7 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
     }
 
     if (!fOwnerOutFound) {
-        strError = "bad-txns-issue-unique-asset-bad-owner-asset";
+        strError = "bad-txns-issue-unique-asset-missing-owner-asset";
         return false;
     }
 
@@ -843,6 +1071,20 @@ bool CTransaction::IsReissueAsset() const
         return false;
 
     return true;
+}
+
+bool CTransaction::CheckAddingTagBurnFee(const int& count) const
+{
+    // check for burn outpoint )
+    bool fBurnOutpointFound = false;
+    for (auto out : vout) {
+        if (CheckIssueBurnTx(out, AssetType::NULL_ADD_QUALIFIER, count)) {
+            fBurnOutpointFound = true;
+            break;
+        }
+    }
+
+   return fBurnOutpointFound;
 }
 
 //! To be called on CTransactions where IsReissueAsset returns true
@@ -914,23 +1156,291 @@ bool CTransaction::VerifyReissueAsset(std::string& strError) const
     return true;
 }
 
-CAssetTransfer::CAssetTransfer(const std::string& strAssetName, const CAmount& nAmount)
+//! Make sure to call VerifyNewQualifierAsset if this call returns true
+bool CTransaction::IsNewQualifierAsset() const
 {
+    // Check trailing outpoint for issue data with unique asset name
+    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+        return false;
+
+    if (!IsScriptNewQualifierAsset(vout[vout.size() - 1].scriptPubKey))
+        return false;
+
+    return true;
+}
+
+//! To be called on CTransactions where IsNewQualifierAsset returns true
+bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
+{
+    // Issuing an Asset must contain at least 2 CTxOut( Raven Burn Tx, New Asset Tx, Any Number of other Outputs...)
+    if (vout.size() < 2) {
+        strError  = "bad-txns-issue-qualifier-vout-size-to-small";
+        return false;
+    }
+
+    // Check for the assets data CTxOut. This will always be the last output in the transaction
+    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+        strError  = "bad-txns-issue-qualifider-data-not-found";
+        return false;
+    }
+
+    // Get the asset type
+    CNewAsset asset;
+    std::string address;
+    if (!QualifierAssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+        strError = "bad-txns-issue-qualifier-serialzation-failed";
+        return error("%s : Failed to get new qualifier asset from transaction: %s", __func__, this->GetHash().GetHex());
+    }
+
+    AssetType assetType;
+    IsAssetNameValid(asset.strName, assetType);
+
+    // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
+    bool fFoundIssueBurnTx = false;
+    for (auto out : vout) {
+        if (CheckIssueBurnTx(out, assetType)) {
+            fFoundIssueBurnTx = true;
+            break;
+        }
+    }
+
+    if (!fFoundIssueBurnTx) {
+        strError = "bad-txns-issue-qualifier-burn-not-found";
+        return false;
+    }
+
+    if (assetType == AssetType::SUB_QUALIFIER) {
+        // Check that there is an asset transfer with the parent name, qualifier use just the parent name, they don't use not parent + !
+        bool fOwnerOutFound = false;
+        std::string root = GetParentName(asset.strName);
+        for (auto out : vout) {
+            CAssetTransfer transfer;
+            std::string transferAddress;
+            if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
+                if (root == transfer.strName) {
+                    fOwnerOutFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!fOwnerOutFound) {
+            strError  = "bad-txns-issue-sub-qualifier-parent-outpoint-not-found";
+            return false;
+        }
+    }
+
+    // Loop through all of the vouts and make sure only the expected asset creations are taking place
+    int nTransfers = 0;
+    int nOwners = 0;
+    int nIssues = 0;
+    int nReissues = 0;
+    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+
+    if (nOwners != 0 || nIssues != 1 || nReissues > 0) {
+        strError = "bad-txns-failed-issue-asset-formatting-check";
+        return false;
+    }
+
+    return true;
+}
+
+//! Make sure to call VerifyNewAsset if this call returns true
+bool CTransaction::IsNewRestrictedAsset() const
+{
+    // Check trailing outpoint for issue data with unique asset name
+    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+        return false;
+
+    if (!IsScriptNewRestrictedAsset(vout[vout.size() - 1].scriptPubKey))
+        return false;
+
+    return true;
+}
+
+//! To be called on CTransactions where IsNewRestrictedAsset returns true
+bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
+    // Issuing a restricted asset must cointain at least 4 CTxOut(Raven Burn Tx, Asset Creation, Root Owner Token Transfer, and CNullAssetTxVerifierString)
+    if (vout.size() < 4) {
+        strError = "bad-txns-issue-restricted-vout-size-to-small";
+        return false;
+    }
+
+    // Check for the assets data CTxOut. This will always be the last output in the transaction
+    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+        strError = "bad-txns-issue-restricted-data-not-found";
+        return false;
+    }
+
+    // Get the asset type
+    CNewAsset asset;
+    std::string address;
+    if (!RestrictedAssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+        strError = "bad-txns-issue-restricted-serialization-failed";
+        return error("%s : Failed to get new restricted asset from transaction: %s", __func__, this->GetHash().GetHex());
+    }
+
+    AssetType assetType;
+    IsAssetNameValid(asset.strName, assetType);
+
+    // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
+    bool fFoundIssueBurnTx = false;
+    for (auto out : vout) {
+        if (CheckIssueBurnTx(out, assetType)) {
+            fFoundIssueBurnTx = true;
+            break;
+        }
+    }
+
+    if (!fFoundIssueBurnTx) {
+        strError = "bad-txns-issue-restricted-burn-not-found";
+        return false;
+    }
+
+    // Check that there is an asset transfer with the parent name, restricted assets use the root owner token. So issuing $TOKEN requires TOKEN!
+    bool fRootOwnerOutFound = false;
+    std::string root = GetParentName(asset.strName);
+    std::string strippedRoot = root.substr(1, root.size() -1) + OWNER_TAG; // $TOKEN checks for TOKEN!
+    for (auto out : vout) {
+        CAssetTransfer transfer;
+        std::string transferAddress;
+        if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
+            if (strippedRoot == transfer.strName) {
+                fRootOwnerOutFound = true;
+                break;
+            }
+        }
+    }
+
+    if (!fRootOwnerOutFound) {
+        strError  = "bad-txns-issue-restricted-root-owner-token-outpoint-not-found";
+        return false;
+    }
+
+    // Check to make sure we can get the verifier string from the transaction
+    CNullAssetTxVerifierString verifier;
+    if (!GetVerifierStringFromTx(verifier, strError)) {
+        return false;
+    }
+
+    // TODO is verifier string valid check, this happen automatically when processing the nullasset tx outputs
+
+    // Loop through all of the vouts and make sure only the expected asset creations are taking place
+    int nTransfers = 0;
+    int nOwners = 0;
+    int nIssues = 0;
+    int nReissues = 0;
+    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+
+    if (nOwners != 0 || nIssues != 1 || nReissues > 0) {
+        strError = "bad-txns-failed-issue-asset-formatting-check";
+        return false;
+    }
+
+    return true;
+}
+
+bool CTransaction::GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError, bool& fNotFound) const
+{
+    fNotFound = false;
+    bool found = false;
+    int count = 0;
+    for (auto out : vout) {
+        if (out.scriptPubKey.IsNullAssetVerifierTxDataScript()) {
+            count++;
+
+            if (count > 1) {
+                strError = _("Multiple verifier strings found in transaction");
+                return false;
+            }
+            if (!AssetNullVerifierDataFromScript(out.scriptPubKey, verifier)) {
+                strError = _("Failed to get verifier string from output: ") + out.ToString();
+                return false;
+            }
+
+            found = true;
+        }
+    }
+
+    // Set error message, for if it returns false
+    if (!found) {
+        fNotFound = true;
+        strError = _("Verifier string not found");
+    }
+
+    return found && count == 1;
+}
+
+bool CTransaction::GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError) const
+{
+    bool fNotFound = false;
+    return GetVerifierStringFromTx(verifier, strError, fNotFound);
+}
+
+CAssetTransfer::CAssetTransfer(const std::string& strAssetName, const CAmount& nAmount, const std::string& message , const int64_t& nExpireTime)
+{
+    SetNull();
     this->strName = strAssetName;
     this->nAmount = nAmount;
+    this->message = message;
+    if (!message.empty()) {
+        if (nExpireTime) {
+            this->nExpireTime = nExpireTime;
+        } else {
+            this->nExpireTime = 0;
+        }
+    }
 }
 
 bool CAssetTransfer::IsValid(std::string& strError) const
 {
+    // Don't use this function with any sort of consensus checks
+    // All of these checks are run with ContextualCheckTransferAsset also
+
     strError = "";
-
-    if (!IsAssetNameValid(std::string(strName)))
+    if (!IsAssetNameValid(std::string(strName))) {
         strError = "Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.";
+        return false;
+    }
 
-    if (nAmount <= 0)
-        strError  = "Invalid parameter: asset amount can't be equal to or less than zero.";
+    // this function is only being called in createrawtranasction, so it is fine to have a contextual check here
+    // if this gets called anywhere else, we will need to move this to a Contextual function
+    if (nAmount <= 0) {
+        strError = "Invalid parameter: asset amount can't be equal to or less than zero.";
+        return false;
+    }
 
-    return strError == "";
+    if (message.empty() && nExpireTime > 0) {
+        strError = "Invalid parameter: asset transfer expiration time requires a message to be attached to the transfer";
+        return false;
+    }
+
+    if (nExpireTime < 0) {
+        strError = "Invalid parameter: expiration time must be a positive value";
+        return false;
+    }
+
+    if (message.size() && !CheckEncoded(message, strError)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool CAssetTransfer::ContextualCheckAgainstVerifyString(CAssetsCache *assetCache, const std::string& address, std::string& strError) const
+{
+    // Get the verifier string
+    CNullAssetTxVerifierString verifier;
+    if (!assetCache->GetAssetVerifierStringIfExists(this->strName, verifier, true)) {
+        // This shouldn't ever happen, but if it does we need to know
+        strError = _("Verifier String doesn't exist for asset: ") + this->strName;
+        return false;
+    }
+
+    if (!ContextualCheckVerifierString(assetCache, verifier.verifier_string, address, strError))
+        return false;
+
+    return true;
 }
 
 void CAssetTransfer::ConstructTransaction(CScript& script) const
@@ -957,62 +1467,6 @@ CReissueAsset::CReissueAsset(const std::string &strAssetName, const CAmount &nAm
     this->nReissuable = int8_t(nReissuable);
     this->nAmount = nAmount;
     this->nUnits = nUnits;
-}
-
-bool CReissueAsset::IsValid(std::string &strError, CAssetsCache& assetCache, bool fForceCheckPrimaryAssetExists) const {
-    strError = "";
-
-    if (fForceCheckPrimaryAssetExists) {
-        CNewAsset asset;
-        if (!assetCache.GetAssetMetaDataIfExists(this->strName, asset)) {
-            strError = _("Unable to reissue asset: asset_name '") + strName + _("' doesn't exist in the database");
-            return false;
-        }
-
-        if (!asset.nReissuable) {
-            // Check to make sure the asset can be reissued
-            strError = _("Unable to reissue asset: reissuable is set to false");
-            return false;
-        }
-
-        if (asset.nAmount + this->nAmount > MAX_MONEY) {
-            strError = _("Unable to reissue asset: asset_name '") + strName +
-                       _("' the amount trying to reissue is to large");
-            return false;
-        }
-
-        if (!CheckAmountWithUnits(nAmount, asset.units)) {
-            strError = _("Unable to reissue asset: amount must be divisible by the smaller unit assigned to the asset");
-            return false;
-        }
-
-        if (nUnits < asset.units && nUnits != -1) {
-            strError = _("Unable to reissue asset: unit must be larger than current unit selection");
-            return false;
-        }
-    }
-
-    if (strIPFSHash != "" && strIPFSHash.size() != 34) {
-        strError = _("Invalid parameter: ipfs_hash must be 34 bytes.");
-        return false;
-    }
-
-    if (strIPFSHash != "") {
-        if (!CheckEncodedIPFS(EncodeIPFS(strIPFSHash), strError))
-            return false;
-    }
-
-    if (nAmount < 0) {
-        strError = _("Unable to reissue asset: amount must be 0 or larger");
-        return false;
-    }
-
-    if (nUnits > MAX_UNIT || nUnits < -1) {
-        strError = _("Unable to reissue asset: unit must be between 8 and -1");
-        return false;
-    }
-
-    return true;
 }
 
 void CReissueAsset::ConstructTransaction(CScript& script) const
@@ -1360,6 +1814,9 @@ bool CAssetsCache::RemoveReissueAsset(const CReissueAsset& reissue, const std::s
     assetData.nAmount -= reissue.nAmount;
     assetData.nReissuable = 1;
 
+    bool fVerifierStringChanged = false;
+    std::string verifierString = "";
+
     // Find the ipfs hash in the undoblock data and restore the ipfs hash to its previous hash
     for (auto undoItem : vUndoIPFS) {
         if (undoItem.first == reissue.strName) {
@@ -1369,6 +1826,11 @@ bool CAssetsCache::RemoveReissueAsset(const CReissueAsset& reissue, const std::s
                 assetData.units = undoItem.second.nUnits;
             if (assetData.strIPFSHash == "")
                 assetData.nHasIPFS = 0;
+            if (undoItem.second.fChangedVerifierString) {
+                fVerifierStringChanged = true;
+                verifierString = undoItem.second.verifierString;
+
+            }
             break;
         }
     }
@@ -1381,6 +1843,11 @@ bool CAssetsCache::RemoveReissueAsset(const CReissueAsset& reissue, const std::s
         setNewReissueToAdd.erase(reissueAsset);
 
     setNewReissueToRemove.insert(reissueAsset);
+
+    // If the verifier string was changed by this reissue, undo the change
+    if (fVerifierStringChanged) {
+        RemoveRestrictedVerifier(assetData.strName, verifierString, true);
+    }
 
     if (fAssetIndex) {
         // Get the best amount form the database or dirty cache
@@ -1450,6 +1917,183 @@ bool CAssetsCache::RemoveTransfer(const CAssetTransfer &transfer, const std::str
     return true;
 }
 
+//! Changes Memory Only, this only called when adding a block to the chain
+bool CAssetsCache::AddQualifierAddress(const std::string& assetName, const std::string& address, const QualifierType type)
+{
+    CAssetCacheQualifierAddress newQualifier(assetName, address, type);
+
+    // We are adding a qualifier that was in a transaction, so, if the set of qualifiers
+    // that contains qualifiers to undo contains the same qualfier assetName, and address, erase it
+    if (setNewQualifierAddressToRemove.count(newQualifier)) {
+        setNewQualifierAddressToRemove.erase(newQualifier);
+    }
+
+    // If the set of qualifiers from transactions contains our qualifier already, we need to overwrite it
+    if (setNewQualifierAddressToAdd.count(newQualifier)) {
+        setNewQualifierAddressToAdd.erase(newQualifier);
+    }
+
+    if (IsAssetNameASubQualifier(assetName)) {
+        if (type == QualifierType::ADD_QUALIFIER) {
+            mapRootQualifierAddressesAdd[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].insert(assetName);
+            mapRootQualifierAddressesRemove[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].erase(assetName);
+        } else {
+            mapRootQualifierAddressesRemove[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].insert(assetName);
+            mapRootQualifierAddressesAdd[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].erase(assetName);
+        }
+    }
+
+    setNewQualifierAddressToAdd.insert(newQualifier);
+
+    return true;
+}
+
+//! Changes Memory Only, this is only called when undoing a block from the chain
+bool CAssetsCache::RemoveQualifierAddress(const std::string& assetName, const std::string& address, const QualifierType type)
+{
+    CAssetCacheQualifierAddress newQualifier(assetName, address, type);
+
+    // We are adding a qualifier that was in a transaction, so, if the set of qualifiers
+    // that contains qualifiers to undo contains the same qualfier assetName, and address, erase it
+    if (setNewQualifierAddressToAdd.count(newQualifier)) {
+        setNewQualifierAddressToAdd.erase(newQualifier);
+    }
+
+    // If the set of qualifiers from transactions contains our qualifier already, we need to overwrite it
+    if (setNewQualifierAddressToRemove.count(newQualifier)) {
+        setNewQualifierAddressToRemove.erase(newQualifier);
+    }
+
+    if (IsAssetNameASubQualifier(assetName)) {
+        if (type == QualifierType::ADD_QUALIFIER) {
+            // When undoing a add, we want to remove it
+            mapRootQualifierAddressesRemove[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].insert(assetName);
+            mapRootQualifierAddressesAdd[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].erase(assetName);
+        } else {
+            // When undoing a remove, we want to add it
+            mapRootQualifierAddressesAdd[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].insert(assetName);
+            mapRootQualifierAddressesRemove[CAssetCacheRootQualifierChecker(GetParentName(assetName), address)].erase(assetName);
+        }
+    }
+
+    setNewQualifierAddressToRemove.insert(newQualifier);
+
+    return true;
+}
+
+
+//! Changes Memory Only, this only called when adding a block to the chain
+bool CAssetsCache::AddRestrictedAddress(const std::string& assetName, const std::string& address, const RestrictedType type)
+{
+    CAssetCacheRestrictedAddress newRestricted(assetName, address, type);
+
+    // We are adding a restricted address that was in a transaction, so, if the set of restricted addresses
+    // to undo contains our restricted address. Erase it
+    if (setNewRestrictedAddressToRemove.count(newRestricted)) {
+        setNewRestrictedAddressToRemove.erase(newRestricted);
+    }
+
+    // If the set of restricted addresses from transactions contains our restricted asset address already, we need to overwrite it
+    if (setNewRestrictedAddressToAdd.count(newRestricted)) {
+        setNewRestrictedAddressToAdd.erase(newRestricted);
+    }
+
+    setNewRestrictedAddressToAdd.insert(newRestricted);
+
+    return true;
+}
+
+//! Changes Memory Only, this is only called when undoing a block from the chain
+bool CAssetsCache::RemoveRestrictedAddress(const std::string& assetName, const std::string& address, const RestrictedType type)
+{
+    CAssetCacheRestrictedAddress newRestricted(assetName, address, type);
+
+    // We are undoing a restricted address transaction, so if the set that contains restricted address from new block
+    // contains this restricted address, erase it.
+    if (setNewRestrictedAddressToAdd.count(newRestricted)) {
+        setNewRestrictedAddressToAdd.erase(newRestricted);
+    }
+
+    // If the set of restricted address to undo contains our restricted address already, we need to overwrite it
+    if (setNewRestrictedAddressToRemove.count(newRestricted)) {
+        setNewRestrictedAddressToRemove.erase(newRestricted);
+    }
+
+    setNewRestrictedAddressToRemove.insert(newRestricted);
+
+    return true;
+}
+
+//! Changes Memory Only, this only called when adding a block to the chain
+bool CAssetsCache::AddGlobalRestricted(const std::string& assetName, const RestrictedType type)
+{
+    CAssetCacheRestrictedGlobal newGlobalRestriction(assetName, type);
+
+    // We are adding a global restriction transaction, so if the set the contains undo global restrictions,
+    // contains this global restriction, erase it
+    if (setNewRestrictedGlobalToRemove.count(newGlobalRestriction)) {
+        setNewRestrictedGlobalToRemove.erase(newGlobalRestriction);
+    }
+
+    // If the set of global restrictions to add already contains our set, overwrite it
+    if (setNewRestrictedGlobalToAdd.count(newGlobalRestriction)) {
+        setNewRestrictedGlobalToAdd.erase(newGlobalRestriction);
+    }
+
+    setNewRestrictedGlobalToAdd.insert(newGlobalRestriction);
+
+    return true;
+}
+
+//! Changes Memory Only, this is only called when undoing a block from the chain
+bool CAssetsCache::RemoveGlobalRestricted(const std::string& assetName, const RestrictedType type)
+{
+    CAssetCacheRestrictedGlobal newGlobalRestriction(assetName, type);
+
+    // We are undoing a global restriction transaction, so if the set the contains new global restrictions,
+    // contains this global restriction, erase it
+    if (setNewRestrictedGlobalToAdd.count(newGlobalRestriction)) {
+        setNewRestrictedGlobalToAdd.erase(newGlobalRestriction);
+    }
+
+    // If the set of global restrictions to undo already contains our set, overwrite it
+    if (setNewRestrictedGlobalToRemove.count(newGlobalRestriction)) {
+        setNewRestrictedGlobalToRemove.erase(newGlobalRestriction);
+    }
+
+    setNewRestrictedGlobalToRemove.insert(newGlobalRestriction);
+
+    return true;
+}
+
+//! Changes Memory Only
+bool CAssetsCache::AddRestrictedVerifier(const std::string& assetName, const std::string& verifier)
+{
+    // Insert the reissue information into the reissue map
+    CAssetCacheRestrictedVerifiers newVerifier(assetName, verifier);
+
+    if (setNewRestrictedVerifierToRemove.count(newVerifier))
+        setNewRestrictedVerifierToRemove.erase(newVerifier);
+
+    setNewRestrictedVerifierToAdd.insert(newVerifier);
+
+    return true;
+}
+
+//! Changes Memory Only
+bool CAssetsCache::RemoveRestrictedVerifier(const std::string& assetName, const std::string& verifier, const bool fUndoingReissue)
+{
+    CAssetCacheRestrictedVerifiers newVerifier(assetName, verifier);
+    newVerifier.fUndoingRessiue = fUndoingReissue;
+
+    if (setNewRestrictedVerifierToAdd.count(newVerifier))
+        setNewRestrictedVerifierToAdd.erase(newVerifier);
+
+    setNewRestrictedVerifierToRemove.insert(newVerifier);
+
+    return true;
+}
+
 bool CAssetsCache::DumpCacheToDatabase()
 {
     try {
@@ -1466,6 +2110,11 @@ bool CAssetsCache::DumpCacheToDatabase()
 
             if (dirty) {
                 return error("%s : %s", __func__, message);
+            }
+
+            if (!prestricteddb->EraseVerifier(newAsset.asset.strName)) {
+                dirty = true;
+                message = "_Failed Erasing verifier of new asset removal data from database";
             }
 
             if (fAssetIndex) {
@@ -1485,29 +2134,197 @@ bool CAssetsCache::DumpCacheToDatabase()
             }
         }
 
-        // Add the new assets to the database
-        for (auto newAsset : setNewAssetsToAdd) {
-            passetsCache->Put(newAsset.asset.strName, CDatabasedAssetData(newAsset.asset, newAsset.blockHeight, newAsset.blockHash));
-            if (!passetsdb->WriteAssetData(newAsset.asset, newAsset.blockHeight, newAsset.blockHash)) {
+        // Add new verifier strings for restricted assets
+        for (auto newVerifier : setNewRestrictedVerifierToAdd) {
+            auto assetName = newVerifier.assetName;
+            if (!prestricteddb->WriteVerifier(assetName, newVerifier.verifier)) {
                 dirty = true;
-                message = "_Failed Writing New Asset Data to database";
+                message = "_Failed Writing restricted verifier to database";
             }
 
             if (dirty) {
                 return error("%s : %s", __func__, message);
             }
 
-            if (fAssetIndex) {
-                if (!passetsdb->WriteAssetAddressQuantity(newAsset.asset.strName, newAsset.address,
-                                                          newAsset.asset.nAmount)) {
-                    dirty = true;
-                    message = "_Failed Writing Address Balance to database";
-                }
+            passetsVerifierCache->Erase(assetName);
+        }
 
-                if (!passetsdb->WriteAddressAssetQuantity(newAsset.address, newAsset.asset.strName,
-                                                          newAsset.asset.nAmount)) {
+        // Undo verifier string for restricted assets
+        for (auto undoVerifiers : setNewRestrictedVerifierToRemove) {
+            auto assetName = undoVerifiers.assetName;
+
+            // If we are undoing a reissue, we need to save back the old verifier string to database
+            if (undoVerifiers.fUndoingRessiue) {
+                if (!prestricteddb->WriteVerifier(assetName, undoVerifiers.verifier)) {
                     dirty = true;
-                    message = "_Failed Writing Address Balance to database";
+                    message = "_Failed Writing undo restricted verifer to database";
+                }
+            } else {
+                if (!prestricteddb->EraseVerifier(assetName)) {
+                    dirty = true;
+                    message = "_Failed Writing undo restricted verifer to database";
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+
+            passetsVerifierCache->Erase(assetName);
+        }
+
+        // Add the new qualifier commands to the database
+        for (auto newQualifierAddress : setNewQualifierAddressToAdd) {
+            if (newQualifierAddress.type == QualifierType::REMOVE_QUALIFIER) {
+                passetsQualifierCache->Erase(newQualifierAddress.GetHash().GetHex());
+                if (!prestricteddb->EraseAddressQualifier(newQualifierAddress.address, newQualifierAddress.assetName)) {
+                    dirty = true;
+                    message = "_Failed Erasing address qualifier from database";
+                }
+                if (fAssetIndex && !dirty) {
+                    if (!prestricteddb->EraseQualifierAddress(newQualifierAddress.address,
+                                                              newQualifierAddress.assetName)) {
+                        dirty = true;
+                        message = "_Failed Erasing qualifier address from database";
+                    }
+                }
+            } else if (newQualifierAddress.type == QualifierType::ADD_QUALIFIER) {
+                passetsQualifierCache->Put(newQualifierAddress.GetHash().GetHex(), 1);
+                if (!prestricteddb->WriteAddressQualifier(newQualifierAddress.address, newQualifierAddress.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed Writing address qualifier to database";
+                }
+                if (fAssetIndex & !dirty) {
+                    if (!prestricteddb->WriteQualifierAddress(newQualifierAddress.address, newQualifierAddress.assetName))
+                    {
+                        dirty = true;
+                        message = "_Failed Writing qualifier address to database";
+                    }
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+        }
+
+        // Undo the qualifier commands
+        for (auto undoQualifierAddress : setNewQualifierAddressToRemove) {
+            if (undoQualifierAddress.type == QualifierType::REMOVE_QUALIFIER) { // If we are undoing a removal, we write the data to database
+                passetsQualifierCache->Put(undoQualifierAddress.GetHash().GetHex(), 1);
+                if (!prestricteddb->WriteAddressQualifier(undoQualifierAddress.address, undoQualifierAddress.assetName)) {
+                    dirty = true;
+                    message = "_Failed undoing a removal of a address qualifier  from database";
+                }
+                if (fAssetIndex & !dirty) {
+                    if (!prestricteddb->WriteQualifierAddress(undoQualifierAddress.address, undoQualifierAddress.assetName))
+                    {
+                        dirty = true;
+                        message = "_Failed undoing a removal of a qualifier address from database";
+                    }
+                }
+            } else if (undoQualifierAddress.type == QualifierType::ADD_QUALIFIER) { // If we are undoing an addition, we remove the data from the database
+                passetsQualifierCache->Erase(undoQualifierAddress.GetHash().GetHex());
+                if (!prestricteddb->EraseAddressQualifier(undoQualifierAddress.address, undoQualifierAddress.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed undoing a addition of a address qualifier to database";
+                }
+                if (fAssetIndex && !dirty) {
+                    if (!prestricteddb->EraseQualifierAddress(undoQualifierAddress.address,
+                                                              undoQualifierAddress.assetName)) {
+                        dirty = true;
+                        message = "_Failed undoing a addition of a qualifier address from database";
+                    }
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+        }
+
+        // Add new restricted address commands
+        for (auto newRestrictedAddress : setNewRestrictedAddressToAdd) {
+            if (newRestrictedAddress.type == RestrictedType::UNFREEZE_ADDRESS) {
+                passetsRestrictionCache->Erase(newRestrictedAddress.GetHash().GetHex());
+                if (!prestricteddb->EraseRestrictedAddress(newRestrictedAddress.address, newRestrictedAddress.assetName)) {
+                    dirty = true;
+                    message = "_Failed Erasing restricted address from database";
+                }
+            } else if (newRestrictedAddress.type == RestrictedType::FREEZE_ADDRESS) {
+                passetsRestrictionCache->Put(newRestrictedAddress.GetHash().GetHex(), 1);
+                if (!prestricteddb->WriteRestrictedAddress(newRestrictedAddress.address, newRestrictedAddress.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed Writing restricted address to database";
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+        }
+
+        // Undo the qualifier addresses from database
+        for (auto undoRestrictedAddress : setNewRestrictedAddressToRemove) {
+            if (undoRestrictedAddress.type == RestrictedType::UNFREEZE_ADDRESS) { // If we are undoing an unfreeze, we need to freeze the address
+                passetsRestrictionCache->Put(undoRestrictedAddress.GetHash().GetHex(), 1);
+                if (!prestricteddb->WriteRestrictedAddress(undoRestrictedAddress.address, undoRestrictedAddress.assetName)) {
+                    dirty = true;
+                    message = "_Failed undoing a removal of a restricted address from database";
+                }
+            } else if (undoRestrictedAddress.type == RestrictedType::FREEZE_ADDRESS) { // If we are undoing a freeze, we need to unfreeze the address
+                passetsRestrictionCache->Erase(undoRestrictedAddress.GetHash().GetHex());
+                if (!prestricteddb->EraseRestrictedAddress(undoRestrictedAddress.address, undoRestrictedAddress.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed undoing a addition of a restricted address to database";
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+        }
+
+        // Add new global restriction commands
+        for (auto newGlobalRestriction : setNewRestrictedGlobalToAdd) {
+            if (newGlobalRestriction.type == RestrictedType::GLOBAL_UNFREEZE) {
+                passetsGlobalRestrictionCache->Erase(newGlobalRestriction.assetName);
+                if (!prestricteddb->EraseGlobalRestriction(newGlobalRestriction.assetName)) {
+                    dirty = true;
+                    message = "_Failed Erasing global restriction from database";
+                }
+            } else if (newGlobalRestriction.type == RestrictedType::GLOBAL_FREEZE) {
+                passetsGlobalRestrictionCache->Put(newGlobalRestriction.assetName, 1);
+                if (!prestricteddb->WriteGlobalRestriction(newGlobalRestriction.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed Writing global restriction to database";
+                }
+            }
+
+            if (dirty) {
+                return error("%s : %s", __func__, message);
+            }
+        }
+
+        // Undo the global restriction commands
+        for (auto undoGlobalRestriction : setNewRestrictedGlobalToRemove) {
+            if (undoGlobalRestriction.type == RestrictedType::GLOBAL_UNFREEZE) { // If we are undoing an global unfreeze, we need to write a global freeze
+                passetsGlobalRestrictionCache->Put(undoGlobalRestriction.assetName, 1);
+                if (!prestricteddb->WriteGlobalRestriction(undoGlobalRestriction.assetName)) {
+                    dirty = true;
+                    message = "_Failed undoing a global unfreeze of a restricted asset from database";
+                }
+            } else if (undoGlobalRestriction.type == RestrictedType::GLOBAL_FREEZE) { // If we are undoing a global freeze, erase the freeze from the database
+                passetsGlobalRestrictionCache->Erase(undoGlobalRestriction.assetName);
+                if (!prestricteddb->EraseGlobalRestriction(undoGlobalRestriction.assetName))
+                {
+                    dirty = true;
+                    message = "_Failed undoing a global freeze of a restricted asset to database";
                 }
             }
 
@@ -1856,7 +2673,113 @@ bool CAssetsCache::Flush()
         for (auto &item : vUndoAssetAmount) {
             passets->vUndoAssetAmount.emplace_back(item);
         }
+        for(auto &item : setNewQualifierAddressToAdd) {
+            if (passets->setNewQualifierAddressToRemove.count(item)) {
+                passets->setNewQualifierAddressToRemove.erase(item);
+            }
 
+            if (passets->setNewQualifierAddressToAdd.count(item)) {
+                passets->setNewQualifierAddressToAdd.erase(item);
+            }
+
+            passets->setNewQualifierAddressToAdd.insert(item);
+        }
+
+        for(auto &item : setNewQualifierAddressToRemove) {
+            if (passets->setNewQualifierAddressToAdd.count(item)) {
+                passets->setNewQualifierAddressToAdd.erase(item);
+            }
+
+            if (passets->setNewQualifierAddressToRemove.count(item)) {
+                passets->setNewQualifierAddressToRemove.erase(item);
+            }
+
+            passets->setNewQualifierAddressToRemove.insert(item);
+        }
+
+        for(auto &item : setNewRestrictedAddressToAdd) {
+            if (passets->setNewRestrictedAddressToRemove.count(item)) {
+                passets->setNewRestrictedAddressToRemove.erase(item);
+            }
+
+            if (passets->setNewRestrictedAddressToAdd.count(item)) {
+                passets->setNewRestrictedAddressToAdd.erase(item);
+            }
+
+            passets->setNewRestrictedAddressToAdd.insert(item);
+        }
+
+        for(auto &item : setNewRestrictedAddressToRemove) {
+            if (passets->setNewRestrictedAddressToAdd.count(item)) {
+                passets->setNewRestrictedAddressToAdd.erase(item);
+            }
+
+            if (passets->setNewRestrictedAddressToRemove.count(item)) {
+                passets->setNewRestrictedAddressToRemove.erase(item);
+            }
+
+            passets->setNewRestrictedAddressToRemove.insert(item);
+        }
+
+        for(auto &item : setNewRestrictedGlobalToAdd) {
+            if (passets->setNewRestrictedGlobalToRemove.count(item)) {
+                passets->setNewRestrictedGlobalToRemove.erase(item);
+            }
+
+            if (passets->setNewRestrictedGlobalToAdd.count(item)) {
+                passets->setNewRestrictedGlobalToAdd.erase(item);
+            }
+
+            passets->setNewRestrictedGlobalToAdd.insert(item);
+        }
+
+        for(auto &item : setNewRestrictedGlobalToRemove) {
+            if (passets->setNewRestrictedGlobalToAdd.count(item)) {
+                passets->setNewRestrictedGlobalToAdd.erase(item);
+            }
+
+            if (passets->setNewRestrictedGlobalToRemove.count(item)) {
+                passets->setNewRestrictedGlobalToRemove.erase(item);
+            }
+
+            passets->setNewRestrictedGlobalToRemove.insert(item);
+        }
+
+        for (auto &item : setNewRestrictedVerifierToAdd) {
+            if (passets->setNewRestrictedVerifierToRemove.count(item)) {
+                passets->setNewRestrictedVerifierToRemove.erase(item);
+            }
+
+            if (passets->setNewRestrictedVerifierToAdd.count(item)) {
+                passets->setNewRestrictedVerifierToAdd.erase(item);
+            }
+
+            passets->setNewRestrictedVerifierToAdd.insert(item);
+        }
+
+        for (auto &item : setNewRestrictedVerifierToRemove) {
+            if (passets->setNewRestrictedVerifierToAdd.count(item)) {
+                passets->setNewRestrictedVerifierToAdd.erase(item);
+            }
+
+            if (passets->setNewRestrictedVerifierToRemove.count(item)) {
+                passets->setNewRestrictedVerifierToRemove.erase(item);
+            }
+
+            passets->setNewRestrictedVerifierToRemove.insert(item);
+        }
+
+        for (auto &item : mapRootQualifierAddressesAdd) {
+            for (auto asset : item.second) {
+                passets->mapRootQualifierAddressesAdd[item.first].insert(asset);
+            }
+        }
+
+        for (auto &item : mapRootQualifierAddressesRemove) {
+            for (auto asset : item.second) {
+                passets->mapRootQualifierAddressesAdd[item.first].insert(asset);
+            }
+        }
         return true;
 
     } catch (const std::runtime_error& e) {
@@ -1933,33 +2856,17 @@ size_t CAssetsCache::GetCacheSizeV2() const
     return size;
 }
 
-// 1, 10, 100 ... COIN
-// (0.00000001, 0.0000001, ... 1)
-bool IsAssetUnitsValid(const CAmount& units)
-{
-    for (int i = 1; i <= COIN; i *= 10) {
-        if (units == i) return true;
-    }
-    return false;
-}
-
 bool CheckIssueBurnTx(const CTxOut& txOut, const AssetType& type, const int numberIssued)
 {
+    if (type == AssetType::REISSUE || type == AssetType::VOTE || type == AssetType::OWNER || type == AssetType::INVALID)
+        return false;
+
     CAmount burnAmount = 0;
     std::string burnAddress = "";
 
-    if (type == AssetType::SUB) {
-        burnAmount = GetIssueSubAssetBurnAmount();
-        burnAddress = Params().IssueSubAssetBurnAddress();
-    } else if (type == AssetType::ROOT) {
-        burnAmount = GetIssueAssetBurnAmount();
-        burnAddress = Params().IssueAssetBurnAddress();
-    } else if (type == AssetType::UNIQUE) {
-        burnAmount = GetIssueUniqueAssetBurnAmount();
-        burnAddress = Params().IssueUniqueAssetBurnAddress();
-    } else {
-        return false;
-    }
+    // Get the burn address and amount for the type of asset
+    burnAmount = GetBurnAmount(type);
+    burnAddress = GetBurnAddress(type);
 
     // If issuing multiple (unique) assets need to burn for each
     burnAmount *= numberIssued;
@@ -2138,6 +3045,55 @@ bool IsScriptTransferAsset(const CScript& scriptPubKey, int& nStartingIndex)
     return false;
 }
 
+bool IsScriptNewQualifierAsset(const CScript& scriptPubKey)
+{
+    int index = 0;
+    return IsScriptNewQualifierAsset(scriptPubKey, index);
+}
+
+bool IsScriptNewQualifierAsset(const CScript &scriptPubKey, int &nStartingIndex)
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!scriptPubKey.IsAssetScript(nType, fIsOwner, nStartingIndex))
+        return false;
+
+    CNewAsset asset;
+    std::string address;
+    if (!AssetFromScript(scriptPubKey, asset, address))
+        return false;
+
+    AssetType assetType;
+    if (!IsAssetNameValid(asset.strName, assetType))
+        return false;
+
+    return AssetType::QUALIFIER == assetType || AssetType::SUB_QUALIFIER == assetType;
+}
+
+bool IsScriptNewRestrictedAsset(const CScript& scriptPubKey)
+{
+    int index = 0;
+    return IsScriptNewRestrictedAsset(scriptPubKey, index);
+}
+
+bool IsScriptNewRestrictedAsset(const CScript &scriptPubKey, int &nStartingIndex)
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!scriptPubKey.IsAssetScript(nType, fIsOwner, nStartingIndex))
+        return false;
+
+    CNewAsset asset;
+    std::string address;
+    if (!AssetFromScript(scriptPubKey, asset, address))
+        return false;
+
+    AssetType assetType;
+    if (!IsAssetNameValid(asset.strName, assetType))
+        return false;
+
+    return AssetType::RESTRICTED == assetType;
+}
 
 //! Returns a boolean on if the asset exists
 bool CAssetsCache::CheckIfAssetExists(const std::string& name, bool fForceDuplicateCheck)
@@ -2145,6 +3101,11 @@ bool CAssetsCache::CheckIfAssetExists(const std::string& name, bool fForceDuplic
     // TODO we need to add some Locks to this I would think
 
     // Create objects that will be used to check the dirty cache
+    // If we are reindexing, we don't know if an asset exists when accepting blocksы
+    if (fReindex) {
+        return true;
+    }
+
     CNewAsset asset;
     asset.strName = name;
     CAssetCacheNewAsset cachedAsset(asset, "", 0, uint256());
@@ -2324,6 +3285,26 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
             data.destination = DecodeDestination(address);
             data.assetName = asset.strName;
             return true;
+        } else if (QualifierAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
+        } else if (RestrictedAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
+        } else if (QualifierAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
+        } else if (RestrictedAssetFromScript(script, asset, address)) {
+            data.type = TX_NEW_ASSET;
+            data.nAmount = asset.nAmount;
+            data.destination = DecodeDestination(address);
+            data.assetName = asset.strName;
         }
     } else if (type == TX_TRANSFER_ASSET) {
         CAssetTransfer transfer;
@@ -2333,6 +3314,8 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
             data.destination = DecodeDestination(address);
             data.assetName = transfer.strName;
             return true;
+        } else {
+            LogPrintf("Failed to get transfer from script\n");
         }
     } else if (type == TX_NEW_ASSET && fIsOwner) {
         if (OwnerAssetFromScript(script, assetName, address)) {
@@ -2391,6 +3374,25 @@ CAmount GetIssueAssetBurnAmount()
     return Params().IssueAssetBurnAmount();
 }
 
+CAmount GetIssueQualifierAssetBurnAmount()
+{
+    return Params().IssueQualifierAssetBurnAmount();
+}
+
+CAmount GetIssueSubQualifierAssetBurnAmount()
+{
+    return Params().IssueSubQualifierAssetBurnAmount();
+}
+
+CAmount GetIssueRestrictedAssetBurnAmount()
+{
+    return Params().IssueRestrictedAssetBurnAmount();
+}
+
+CAmount GetAddNullQualifierTagBurnAmount()
+{
+    return Params().AddNullQualifierTagBurnAmount();
+}
 CAmount GetReissueAssetBurnAmount()
 {
     return Params().ReissueAssetBurnAmount();
@@ -2428,6 +3430,14 @@ CAmount GetBurnAmount(const AssetType type)
             return 0;
         case AssetType::REISSUE:
             return GetReissueAssetBurnAmount();
+        case AssetType::QUALIFIER:
+            return GetIssueQualifierAssetBurnAmount();
+        case AssetType::SUB_QUALIFIER:
+            return GetIssueSubQualifierAssetBurnAmount();
+        case AssetType::RESTRICTED:
+            return GetIssueRestrictedAssetBurnAmount();
+        case AssetType::NULL_ADD_QUALIFIER:
+            return GetAddNullQualifierTagBurnAmount();
         default:
             return 0;
     }
@@ -2455,6 +3465,14 @@ std::string GetBurnAddress(const AssetType type)
             return "";
         case AssetType::REISSUE:
             return Params().ReissueAssetBurnAddress();
+        case AssetType::QUALIFIER:
+            return Params().IssueQualifierAssetBurnAddress();
+        case AssetType::SUB_QUALIFIER:
+            return Params().IssueSubQualifierAssetBurnAddress();
+        case AssetType::RESTRICTED:
+            return Params().IssueRestrictedAssetBurnAddress();
+        case AssetType::NULL_ADD_QUALIFIER:
+            return Params().AddNullQualifierTagBurnAddress();
         default:
             return "";
     }
@@ -2489,14 +3507,14 @@ bool GetBestAssetAddressAmount(CAssetsCache& cache, const std::string& assetName
 }
 
 //! sets _balances_ with the total quantity of each owned asset
-bool GetAllMyAssetBalances(std::map<std::string, std::vector<COutput> >& outputs, std::map<std::string, CAmount>& amounts, const std::string& prefix) {
+bool GetAllMyAssetBalances(std::map<std::string, std::vector<COutput> >& outputs, std::map<std::string, CAmount>& amounts, const int confirmations, const std::string& prefix) {
 
     // Return false if no wallet was found to compute asset balances
     if (!vpwallets.size())
         return false;
 
     // Get the map of assetnames to outputs
-    vpwallets[0]->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY);
+    vpwallets[0]->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, confirmations);
 
     // Loop through all pairs of Asset Name -> vector<COutput>
     for (const auto& pair : outputs) {
@@ -2531,14 +3549,45 @@ std::string EncodeIPFS(std::string decoded){
     return EncodeBase58(unsignedCharData);
 };
 
-bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const CNewAsset& asset, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired)
+// 46 char base58 --> 34 char KAW compatible
+std::string DecodeAssetData(std::string encoded)
+{
+    if (encoded.size() == 46) {
+        std::vector<unsigned char> b;
+        DecodeBase58(encoded, b);
+        return std::string(b.begin(), b.end());
+    }
+
+    else if (encoded.size() == 64 && IsHex(encoded)) {
+        std::vector<unsigned char> vec = ParseHex(encoded);
+        return std::string(vec.begin(), vec.end());
+    }
+
+    return "";
+
+};
+
+std::string EncodeAssetData(std::string decoded)
+{
+    if (decoded.size() == 34) {
+        return EncodeIPFS(decoded);
+    }
+    else if (decoded.size() == 32){
+        return HexStr(decoded);
+    }
+
+    return "";
+}
+
+
+bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const CNewAsset& asset, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::string* verifier_string)
 {
     std::vector<CNewAsset> assets;
     assets.push_back(asset);
-    return CreateAssetTransaction(pwallet, coinControl, assets, address, error, wtxNew, reservekey, nFeeRequired);
+    return CreateAssetTransaction(pwallet, coinControl, assets, address, error, wtxNew, reservekey, nFeeRequired, verifier_string);
 }
 
-bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const std::vector<CNewAsset> assets, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired)
+bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const std::vector<CNewAsset> assets, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::string* verifier_string)
 {
     std::string change_address = EncodeDestination(coinControl.destChange);
 
@@ -2546,7 +3595,7 @@ bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const s
     // Validate the assets data
     std::string strError;
     for (auto asset : assets) {
-        if (!asset.IsValid(strError, *currentActiveAssetCache)) {
+        if (!ContextualCheckNewAsset(currentActiveAssetCache, asset, strError)) {
             error = std::make_pair(RPC_INVALID_PARAMETER, strError);
             return false;
         }
@@ -2630,6 +3679,16 @@ bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const s
         vecSend.push_back(rec);
     }
 
+    if (assetType == AssetType::SUB_QUALIFIER) {
+        // Get the script for the destination address for the assets
+        CScript scriptTransferQualifierAsset = GetScriptForDestination(DecodeDestination(change_address));
+
+        CAssetTransfer assetTransfer(parentName, OWNER_ASSET_AMOUNT);
+        assetTransfer.ConstructTransaction(scriptTransferQualifierAsset);
+        CRecipient rec = {scriptTransferQualifierAsset, 0, fSubtractFeeFromAmount};
+        vecSend.push_back(rec);
+    }
+
     // Get the owner outpoints if this is a subasset or unique asset
     if (assetType == AssetType::SUB || assetType == AssetType::UNIQUE) {
         // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
@@ -2638,6 +3697,49 @@ bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const s
                 return false;
             }
         }
+    }
+
+    // Get the owner outpoints if this is a sub_qualifier asset
+    if (assetType == AssetType::SUB_QUALIFIER) {
+        // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
+        for (auto asset : assets) {
+            if (!VerifyWalletHasAsset(parentName, error)) {
+                return false;
+            }
+        }
+    }
+
+    if (assetType == AssetType::RESTRICTED) {
+        // Restricted assets require the ROOT! token to be sent with the issuance
+        CScript scriptTransferOwnerAsset = GetScriptForDestination(DecodeDestination(change_address));
+
+        // Create a transaction that sends the ROOT owner token (e.g. $TOKEN requires TOKEN!)
+        std::string strStripped = parentName.substr(1, parentName.size() - 1);
+
+        // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
+        if (!VerifyWalletHasAsset(strStripped + OWNER_TAG, error)) {
+            return false;
+        }
+
+        CAssetTransfer assetTransfer(strStripped + OWNER_TAG, OWNER_ASSET_AMOUNT);
+        assetTransfer.ConstructTransaction(scriptTransferOwnerAsset);
+
+        CRecipient ownerRec = {scriptTransferOwnerAsset, 0, fSubtractFeeFromAmount};
+        vecSend.push_back(ownerRec);
+
+        // Every restricted asset issuance must have a verifier string
+        if (!verifier_string) {
+            error = std::make_pair(RPC_INVALID_PARAMETER, "Error: Verifier string not found");
+            return false;
+        }
+
+        // Create the asset null data transaction that will get added to the issue transaction
+        CScript verifierScript;
+        CNullAssetTxVerifierString verifier(*verifier_string);
+        verifier.ConstructTransaction(verifierScript);
+
+        CRecipient rec = {verifierScript, 0, false};
+        vecSend.push_back(rec);
     }
 
     if (!pwallet->CreateTransactionWithAssets(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strTxError, coinControl, assets, DecodeDestination(address), assetType)) {
@@ -2649,10 +3751,21 @@ bool CreateAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const s
     return true;
 }
 
-bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const CReissueAsset& reissueAsset, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired)
+bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, const CReissueAsset& reissueAsset, const std::string& address, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::string* verifier_string)
 {
+    // Create transaction variables
+    std::string strTxError;
+    std::vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+    bool fSubtractFeeFromAmount = false;
+
+    // Create asset variables
     std::string asset_name = reissueAsset.strName;
     std::string change_address = EncodeDestination(coinControl.destChange);
+
+    // Get the asset type
+    AssetType asset_type = AssetType::INVALID;
+    IsAssetNameValid(asset_name, asset_type);
 
     // Check that validitity of the address
     if (!IsValidDestinationString(address)) {
@@ -2660,6 +3773,7 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
         return false;
     }
 
+    // Build the change address
     if (!change_address.empty()) {
         CTxDestination destination = DecodeDestination(change_address);
         if (!IsValidDestination(destination)) {
@@ -2684,6 +3798,7 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
         return false;
     }
 
+    // Check to make sure this isn't an owner token
     if (IsAssetNameAnOwner(asset_name)) {
         error = std::make_pair(RPC_INVALID_PARAMS, std::string("Owner Assets are not able to be reissued"));
         return false;
@@ -2696,22 +3811,35 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
         return false;
     }
 
+    // Fail if the asset cache isn't initialized
     if (!passetsCache) {
         error = std::make_pair(RPC_DATABASE_ERROR,
                                std::string("passetsCache isn't initialized"));
         return false;
     }
 
+    // Check to make sure that the reissue asset data is valid
     std::string strError;
-    if (!reissueAsset.IsValid(strError, *currentActiveAssetCache)) {
+    if (!ContextualCheckReissueAsset(currentActiveAssetCache, reissueAsset, strError)) {
         error = std::make_pair(RPC_VERIFY_ERROR,
                                std::string("Failed to create reissue asset object. Error: ") + strError);
         return false;
     }
+    
+    // strip of the first character of the asset name, this is used for restricted assets only
+    std::string stripped_asset_name = asset_name.substr(1, asset_name.size() - 1);
 
-    // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
-    if (!VerifyWalletHasAsset(asset_name + OWNER_TAG, error)) {
-        return false;
+    // If we are reissuing a restricted asset, check to see if we have the root owner token $TOKEN check for TOKEN!
+    if (asset_type == AssetType::RESTRICTED) {
+        // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
+        if (!VerifyWalletHasAsset(stripped_asset_name + OWNER_TAG, error)) {
+            return false;
+        }
+    } else {
+        // Verify that this wallet is the owner for the asset, and get the owner asset outpoint
+        if (!VerifyWalletHasAsset(asset_name + OWNER_TAG, error)) {
+            return false;
+        }
     }
 
     // Check the wallet balance
@@ -2734,17 +3862,65 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
     // Get the script for the destination address for the assets
     CScript scriptTransferOwnerAsset = GetScriptForDestination(DecodeDestination(change_address));
 
-    CAssetTransfer assetTransfer(asset_name + OWNER_TAG, OWNER_ASSET_AMOUNT);
-    assetTransfer.ConstructTransaction(scriptTransferOwnerAsset);
+    if (asset_type == AssetType::RESTRICTED) {
+        CAssetTransfer assetTransfer(stripped_asset_name + OWNER_TAG, OWNER_ASSET_AMOUNT);
+        assetTransfer.ConstructTransaction(scriptTransferOwnerAsset);
+    } else {
+        CAssetTransfer assetTransfer(asset_name + OWNER_TAG, OWNER_ASSET_AMOUNT);
+        assetTransfer.ConstructTransaction(scriptTransferOwnerAsset);
+    }
+
+    if (asset_type == AssetType::RESTRICTED) {
+        // If we are changing the verifier string, check to make sure the new address meets the new verifier string rules
+        if (verifier_string) {
+            if (reissueAsset.nAmount > 0) {
+                std::string strError = "";
+                ErrorReport report;
+                if (!ContextualCheckVerifierString(passets, *verifier_string, address, strError, &report)) {
+                    error = std::make_pair(RPC_INVALID_PARAMETER, strError);
+                    return false;
+                }
+            } else {
+                // If we aren't adding any assets but we are changing the verifier string, Check to make sure the verifier string parses correctly
+                std::string strError = "";
+                if (!ContextualCheckVerifierString(passets, *verifier_string, "", strError)) {
+                    error = std::make_pair(RPC_INVALID_PARAMETER, strError);
+                    return false;
+                }
+            }
+        } else {
+            // If the user is reissuing more assets, and they aren't changing the verifier string, check it against the current verifier string
+            if (reissueAsset.nAmount > 0) {
+                CNullAssetTxVerifierString verifier;
+                 if (!passets->GetAssetVerifierStringIfExists(reissueAsset.strName, verifier)) {
+                    error = std::make_pair(RPC_DATABASE_ERROR, "Failed to get the assets cache pointer");
+                    return false;
+                }
+
+                std::string strError = "";
+                if (!ContextualCheckVerifierString(passets, verifier.verifier_string, address, strError)) {
+                    error = std::make_pair(RPC_INVALID_PARAMETER, strError);
+                    return false;
+                }
+            }
+        }
+
+        // Every restricted asset issuance must have a verifier string
+        if (verifier_string) {
+            // Create the asset null data transaction that will get added to the issue transaction
+            CScript verifierScript;
+            CNullAssetTxVerifierString verifier(*verifier_string);
+            verifier.ConstructTransaction(verifierScript);
+
+            CRecipient rec = {verifierScript, 0, false};
+            vecSend.push_back(rec);
+        }
+    }
 
     // Get the script for the burn address
     CScript scriptPubKeyBurn = GetScriptForDestination(DecodeDestination(Params().ReissueAssetBurnAddress()));
 
     // Create and send the transaction
-    std::string strTxError;
-    std::vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    bool fSubtractFeeFromAmount = false;
     CRecipient recipient = {scriptPubKeyBurn, burnAmount, fSubtractFeeFromAmount};
     CRecipient recipient2 = {scriptTransferOwnerAsset, 0, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
@@ -2758,7 +3934,9 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
     return true;
 }
 
-bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinControl, const std::vector< std::pair<CAssetTransfer, std::string> >vTransfers, const std::string& changeAddress, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired)
+// nullAssetTxData -> Use this for freeze/unfreeze an address or adding a qualifier to an address
+// nullGlobalRestrictionData -> Use this to globally freeze/unfreeze a restricted asset.
+bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinControl, const std::vector< std::pair<CAssetTransfer, std::string> >vTransfers, const std::string& changeAddress, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::vector<std::pair<CNullAssetTxData, std::string> >* nullAssetTxData, std::vector<CNullAssetTxData>* nullGlobalRestrictionData)
 {
     // Initialize Values for transaction
     std::string strTxError;
@@ -2802,8 +3980,39 @@ bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinCo
         if (IsAssetNameAnOwner(asset_name)) {
             if (nAmount != OWNER_ASSET_AMOUNT) {
                 error = std::make_pair(RPC_INVALID_PARAMS, std::string(
-                        "When transfer an 'Ownership Asset' the amount must always be 1. Please try again with the amount of 1"));
+                        _("When transferring an 'Ownership Asset' the amount must always be 1. Please try again with the amount of 1")));
                 return false;
+            }
+        }
+
+         // If the asset is a restricted asset, check the verifier script
+        if(IsAssetNameAnRestricted(asset_name)) {
+            std::string strError = "";
+
+            // Check for global restriction
+            if (passets->CheckForGlobalRestriction(transfer.first.strName, true)) {
+                error = std::make_pair(RPC_INVALID_PARAMETER, _("Unable to transfer restricted asset, this restricted asset has been globally frozen"));
+                return false;
+            }
+
+            if (!transfer.first.ContextualCheckAgainstVerifyString(passets, address, strError)) {
+                error = std::make_pair(RPC_INVALID_PARAMETER, strError);
+                return false;
+            }
+
+            if (!coinControl.destChange.empty()) {
+                std::string change_address = EncodeDestination(coinControl.destChange);
+                // If this is a transfer of a restricted asset, check the destination address against the verifier string
+                CNullAssetTxVerifierString verifier;
+                if (!passets->GetAssetVerifierStringIfExists(asset_name, verifier)) {
+                    error = std::make_pair(RPC_DATABASE_ERROR, _("Unable to get restricted assets verifier string. Database out of sync. Reindex required"));
+                    return false;
+                }
+
+                if (!ContextualCheckVerifierString(passets, verifier.verifier_string, change_address, strError)) {
+                    error = std::make_pair(RPC_DATABASE_ERROR, std::string(_("Change address can not be sent to because it doesn't have the correct qualifier tags") + strError));
+                    return false;
+                }
             }
         }
 
@@ -2816,6 +4025,59 @@ bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinCo
 
         CRecipient recipient = {scriptPubKey, 0, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
+    }
+
+     // If assetTxData is not nullptr, the user wants to add some OP_XBTX_ASSET data transactions into the transaction
+    if (nullAssetTxData) {
+        std::string strError = "";
+        int nAddTagCount = 0;
+        for (auto pair : *nullAssetTxData) {
+
+            if (IsAssetNameAQualifier(pair.first.asset_name)) {
+                if (!VerifyQualifierChange(*passets, pair.first, pair.second, strError)) {
+                    error = std::make_pair(RPC_INVALID_REQUEST, strError);
+                    return false;
+                }
+
+                if (pair.first.flag == (int)QualifierType::ADD_QUALIFIER)
+                    nAddTagCount++;
+            } else if (IsAssetNameAnRestricted(pair.first.asset_name)) {
+                if (!VerifyRestrictedAddressChange(*passets, pair.first, pair.second, strError)) {
+                    error = std::make_pair(RPC_INVALID_REQUEST, strError);
+                    return false;
+                }
+            }
+
+            CScript dataScript = GetScriptForNullAssetDataDestination(DecodeDestination(pair.second));
+            pair.first.ConstructTransaction(dataScript);
+
+            CRecipient recipient = {dataScript, 0, false};
+            vecSend.push_back(recipient);
+        }
+
+        // Add the burn recipient for adding tags to addresses
+        if (nAddTagCount) {
+            CScript addTagBurnScript = GetScriptForDestination(DecodeDestination(GetBurnAddress(AssetType::NULL_ADD_QUALIFIER)));
+            CRecipient addTagBurnRecipient = {addTagBurnScript, GetBurnAmount(AssetType::NULL_ADD_QUALIFIER) * nAddTagCount, false};
+            vecSend.push_back(addTagBurnRecipient);
+        }
+    }
+
+    // nullGlobalRestiotionData, the user wants to add OP_XBTX_ASSET OP_XBTX_ASSET OP_XBTX_ASSETS data transaction to the transaction
+    if (nullGlobalRestrictionData) {
+        std::string strError = "";
+        for (auto dataObject : *nullGlobalRestrictionData) {
+
+            if (!VerifyGlobalRestrictedChange(*passets, dataObject, strError)) {
+                error = std::make_pair(RPC_INVALID_REQUEST, strError);
+                return false;
+            }
+
+            CScript dataScript;
+            dataObject.ConstructGlobalRestrictionTransaction(dataScript);
+            CRecipient recipient = {dataScript, 0, false};
+            vecSend.push_back(recipient);
+        }
     }
 
     // Create and send the transaction
@@ -2869,14 +4131,21 @@ bool CheckAmountWithUnits(const CAmount& nAmount, const int8_t nUnits)
     return nAmount % int64_t(pow(10, (MAX_UNIT - nUnits))) == 0;
 }
 
-bool CheckEncodedIPFS(const std::string& hash, std::string& strError)
-{
-    if (hash.substr(0, 2) != "Qm") {
-        strError = _("Invalid parameter: ipfs_hash must start with 'Qm'.");
-        return false;
+bool CheckEncoded(const std::string& hash, std::string& strError) {
+    std::string encodedStr = EncodeAssetData(hash);
+    if (encodedStr.substr(0, 2) == "Qm" && encodedStr.size() == 46) {
+        return true;
     }
 
-    return true;
+    if (AreMessagesDeployed()) {
+        if (IsHex(encodedStr) && encodedStr.length() == 64) {
+            return true;
+        }
+    }
+
+    strError = _("Invalid parameter: ipfs_hash is not valid, or txid hash is not the right length");
+
+    return false;
 }
 
 void GetTxOutAssetTypes(const std::vector<CTxOut>& vout, int& issues, int& reissues, int& transfers, int& owners)
@@ -2952,4 +4221,1069 @@ bool ParseAssetScript(CScript scriptPubKey, uint160 &hashBytes, std::string &ass
         return true;
     }
     return false;
+}
+
+CNullAssetTxData::CNullAssetTxData(const std::string &strAssetname, const int8_t &nFlag)
+{
+    SetNull();
+    this->asset_name = strAssetname;
+    this->flag = nFlag;
+}
+
+bool CNullAssetTxData::IsValid(std::string &strError, CAssetsCache &assetCache, bool fForceCheckPrimaryAssetExists) const
+{
+    AssetType type;
+    if (!IsAssetNameValid(asset_name, type)) {
+        strError = _("Asset name is not valid");
+        return false;
+    }
+
+    if (type != AssetType::QUALIFIER && type != AssetType::SUB_QUALIFIER && type != AssetType::RESTRICTED) {
+        strError = _("Asset must be a qualifier, sub qualifier, or a restricted asset");
+        return false;
+    }
+
+    if (flag != 0 || flag != 1) {
+        strError = _("Flag must be 1 or 0");
+        return false;
+    }
+
+    if (fForceCheckPrimaryAssetExists) {
+        if (!assetCache.CheckIfAssetExists(asset_name)) {
+            strError = _("Asset doesn't exist: ") + asset_name;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void CNullAssetTxData::ConstructTransaction(CScript &script) const
+{
+    CDataStream ssAssetTxData(SER_NETWORK, PROTOCOL_VERSION);
+    ssAssetTxData << *this;
+
+    std::vector<unsigned char> vchMessage;
+    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    script << ToByteVector(vchMessage);
+}
+
+void CNullAssetTxData::ConstructGlobalRestrictionTransaction(CScript &script) const
+{
+    CDataStream ssAssetTxData(SER_NETWORK, PROTOCOL_VERSION);
+    ssAssetTxData << *this;
+
+    std::vector<unsigned char> vchMessage;
+    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    script << OP_XBTX_ASSET << OP_RESERVED << OP_RESERVED << ToByteVector(vchMessage);
+}
+
+CNullAssetTxVerifierString::CNullAssetTxVerifierString(const std::string &verifier)
+{
+    SetNull();
+    this->verifier_string = verifier;
+}
+
+void CNullAssetTxVerifierString::ConstructTransaction(CScript &script) const
+{
+    CDataStream ssAssetTxData(SER_NETWORK, PROTOCOL_VERSION);
+    ssAssetTxData << *this;
+
+    std::vector<unsigned char> vchMessage;
+    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    script << OP_XBTX_ASSET << OP_RESERVED << ToByteVector(vchMessage);
+}
+
+bool CAssetsCache::GetAssetVerifierStringIfExists(const std::string &name, CNullAssetTxVerifierString& verifierString, bool fSkipTempCache)
+{
+
+    /** There are circumstances where a blocks transactions could be changing an assets verifier string, While at the
+     * same time a transaction is added to the same block that is trying to transfer the assets who verifier string is
+     * changing.
+     * Depending on the ordering of these two transactions. The verifier string used to verify the validity of the
+     * transaction could be different.
+     * To fix this all restricted asset transfer validation checks will use only the latest connect block tips caches
+     * and databases to validate it. This allows for asset transfers and verify string change transactions to be added in the same block
+     * without failing validation
+    **/
+
+    // Create objects that will be used to check the dirty cache
+    CAssetCacheRestrictedVerifiers tempCacheVerifier {name, ""};
+
+    auto setIterator = setNewRestrictedVerifierToRemove.find(tempCacheVerifier);
+    // Check the dirty caches first and see if it was recently added or removed
+    if (!fSkipTempCache && setIterator != setNewRestrictedVerifierToRemove.end()) {
+        if (setIterator->fUndoingRessiue) {
+            verifierString.verifier_string = setIterator->verifier;
+            return true;
+        }
+        return false;
+    }
+
+    setIterator = passets->setNewRestrictedVerifierToRemove.find(tempCacheVerifier);
+    // Check the dirty caches first and see if it was recently added or removed
+    if (setIterator != passets->setNewRestrictedVerifierToRemove.end()) {
+        if (setIterator->fUndoingRessiue) {
+            verifierString.verifier_string = setIterator->verifier;
+            return true;
+        }
+        return false;
+    }
+
+    setIterator = setNewRestrictedVerifierToAdd.find(tempCacheVerifier);
+    if (!fSkipTempCache && setIterator != setNewRestrictedVerifierToAdd.end()) {
+        verifierString.verifier_string = setIterator->verifier;
+        return true;
+    }
+
+    setIterator = passets->setNewRestrictedVerifierToAdd.find(tempCacheVerifier);
+    if (setIterator != passets->setNewRestrictedVerifierToAdd.end()) {
+        verifierString.verifier_string = setIterator->verifier;
+        return true;
+    }
+
+    // Check the cache, if it doesn't exist in the cache. Try and read it from database
+    if (passetsVerifierCache) {
+        if (passetsVerifierCache->Exists(name)) {
+            verifierString = passetsVerifierCache->Get(name);
+            return true;
+        }
+    }
+
+    if (prestricteddb) {
+        std::string verifier;
+        if (prestricteddb->ReadVerifier(name, verifier)) {
+            verifierString.verifier_string = verifier;
+            if (passetsVerifierCache)
+                passetsVerifierCache->Put(name, verifierString);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CAssetsCache::CheckForAddressQualifier(const std::string &qualifier_name, const std::string& address, bool fSkipTempCache)
+{
+    /** There are circumstances where a blocks transactions could be removing or adding a qualifier to an address,
+     * While at the same time a transaction is added to the same block that is trying to transfer to the same address.
+     * Depending on the ordering of these two transactions. The qualifier database used to verify the validity of the
+     * transactions could be different.
+     * To fix this all restricted asset transfer validation checks will use only the latest connect block tips caches
+     * and databases to validate it. This allows for asset transfers and address qualifier transactions to be added in the same block
+     * without failing validation
+    **/
+
+    // Create cache object that will be used to check the dirty caches
+    CAssetCacheQualifierAddress cachedQualifierAddress(qualifier_name, address, QualifierType::ADD_QUALIFIER);
+
+    // Check the dirty caches first and see if it was recently added or removed
+    auto setIterator = setNewQualifierAddressToRemove.find(cachedQualifierAddress);
+    if (!fSkipTempCache &&setIterator != setNewQualifierAddressToRemove.end()) {
+        // Undoing a remove qualifier command, means that we are adding the qualifier to the address
+        return setIterator->type == QualifierType::REMOVE_QUALIFIER;
+    }
+
+
+    setIterator = passets->setNewQualifierAddressToRemove.find(cachedQualifierAddress);
+    if (setIterator != passets->setNewQualifierAddressToRemove.end()) {
+        // Undoing a remove qualifier command, means that we are adding the qualifier to the address
+        return setIterator->type == QualifierType::REMOVE_QUALIFIER;
+    }
+
+    setIterator = setNewQualifierAddressToAdd.find(cachedQualifierAddress);
+    if (!fSkipTempCache && setIterator != setNewQualifierAddressToAdd.end()) {
+        // Return true if we are adding the qualifier, and false if we are removing it
+        return setIterator->type == QualifierType::ADD_QUALIFIER;
+    }
+
+
+    setIterator = passets->setNewQualifierAddressToAdd.find(cachedQualifierAddress);
+    if (setIterator != passets->setNewQualifierAddressToAdd.end()) {
+        // Return true if we are adding the qualifier, and false if we are removing it
+        return setIterator->type == QualifierType::ADD_QUALIFIER;
+    }
+
+    auto tempCache = CAssetCacheRootQualifierChecker(qualifier_name, address);
+    if (!fSkipTempCache && mapRootQualifierAddressesAdd.count(tempCache)){
+        if (mapRootQualifierAddressesAdd[tempCache].size()) {
+            return true;
+        }
+    }
+
+    if (passets->mapRootQualifierAddressesAdd.count(tempCache)) {
+        if (passets->mapRootQualifierAddressesAdd[tempCache].size()) {
+            return true;
+        }
+    }
+
+    // Check the cache, if it doesn't exist in the cache. Try and read it from database
+    if (passetsQualifierCache) {
+        if (passetsQualifierCache->Exists(cachedQualifierAddress.GetHash().GetHex())) {
+            return true;
+        }
+    }
+
+    if (prestricteddb) {
+
+        // Check for exact qualifier, and add to cache if it exists
+        if (prestricteddb->ReadAddressQualifier(address, qualifier_name)) {
+            passetsQualifierCache->Put(cachedQualifierAddress.GetHash().GetHex(), 1);
+            return true;
+        }
+
+        // Look for sub qualifiers
+        if (prestricteddb->CheckForAddressRootQualifier(address, qualifier_name)){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool CAssetsCache::CheckForAddressRestriction(const std::string &restricted_name, const std::string& address, bool fSkipTempCache)
+{
+    /** There are circumstances where a blocks transactions could be removing or adding a restriction to an address,
+     * While at the same time a transaction is added to the same block that is trying to transfer from that address.
+     * Depending on the ordering of these two transactions. The address restriction database used to verify the validity of the
+     * transactions could be different.
+     * To fix this all restricted asset transfer validation checks will use only the latest connect block tips caches
+     * and databases to validate it. This allows for asset transfers and address restriction transactions to be added in the same block
+     * without failing validation
+    **/
+
+    // Create cache object that will be used to check the dirty caches (type, doesn't matter in this search)
+    CAssetCacheRestrictedAddress cachedRestrictedAddress(restricted_name, address, RestrictedType::FREEZE_ADDRESS);
+
+    // Check the dirty caches first and see if it was recently added or removed
+    auto setIterator = setNewRestrictedAddressToRemove.find(cachedRestrictedAddress);
+    if (!fSkipTempCache && setIterator != setNewRestrictedAddressToRemove.end()) {
+        // Undoing a unfreeze, means that we are adding back a freeze
+        return setIterator->type == RestrictedType::UNFREEZE_ADDRESS;
+    }
+
+    setIterator = passets->setNewRestrictedAddressToRemove.find(cachedRestrictedAddress);
+    if (setIterator != passets->setNewRestrictedAddressToRemove.end()) {
+        // Undoing a unfreeze, means that we are adding back a freeze
+        return setIterator->type == RestrictedType::UNFREEZE_ADDRESS;
+    }
+
+    setIterator = setNewRestrictedAddressToAdd.find(cachedRestrictedAddress);
+    if (!fSkipTempCache && setIterator != setNewRestrictedAddressToAdd.end()) {
+        // Return true if we are freezing the address
+        return setIterator->type == RestrictedType::FREEZE_ADDRESS;
+    }
+
+    setIterator = passets->setNewRestrictedAddressToAdd.find(cachedRestrictedAddress);
+    if (setIterator != passets->setNewRestrictedAddressToAdd.end()) {
+        // Return true if we are freezing the address
+        return setIterator->type == RestrictedType::FREEZE_ADDRESS;
+    }
+
+    // Check the cache, if it doesn't exist in the cache. Try and read it from database
+    if (passetsRestrictionCache) {
+        if (passetsRestrictionCache->Exists(cachedRestrictedAddress.GetHash().GetHex())) {
+            return true;
+        }
+    }
+
+    if (prestricteddb) {
+        if (prestricteddb->ReadRestrictedAddress(address, restricted_name)) {
+            if (passetsRestrictionCache) {
+                passetsRestrictionCache->Put(cachedRestrictedAddress.GetHash().GetHex(), 1);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CAssetsCache::CheckForGlobalRestriction(const std::string &restricted_name, bool fSkipTempCache)
+{
+    /** There are circumstances where a blocks transactions could be freezing all asset transfers. While at
+     * the same time a transaction is added to the same block that is trying to transfer the same asset that is being
+     * frozen.
+     * Depending on the ordering of these two transactions. The global restriction database used to verify the validity of the
+     * transactions could be different.
+     * To fix this all restricted asset transfer validation checks will use only the latest connect block tips caches
+     * and databases to validate it. This allows for asset transfers and global restriction transactions to be added in the same block
+     * without failing validation
+    **/
+
+    // Create cache object that will be used to check the dirty caches (type, doesn't matter in this search)
+    CAssetCacheRestrictedGlobal cachedRestrictedGlobal(restricted_name, RestrictedType::GLOBAL_FREEZE);
+
+    // Check the dirty caches first and see if it was recently added or removed
+    auto setIterator = setNewRestrictedGlobalToRemove.find(cachedRestrictedGlobal);
+    if (!fSkipTempCache && setIterator != setNewRestrictedGlobalToRemove.end()) {
+        // Undoing a removal of a global unfreeze, means that is will become frozen
+        return setIterator->type == RestrictedType::GLOBAL_UNFREEZE;
+    }
+
+    setIterator = passets->setNewRestrictedGlobalToRemove.find(cachedRestrictedGlobal);
+    if (setIterator != passets->setNewRestrictedGlobalToRemove.end()) {
+        // Undoing a removal of a global unfreeze, means that is will become frozen
+        return setIterator->type == RestrictedType::GLOBAL_UNFREEZE;
+    }
+
+    setIterator = setNewRestrictedGlobalToAdd.find(cachedRestrictedGlobal);
+    if (!fSkipTempCache && setIterator != setNewRestrictedGlobalToAdd.end()) {
+        // Return true if we are adding a freeze command
+        return setIterator->type == RestrictedType::GLOBAL_FREEZE;
+    }
+
+    setIterator = passets->setNewRestrictedGlobalToAdd.find(cachedRestrictedGlobal);
+    if (setIterator != passets->setNewRestrictedGlobalToAdd.end()) {
+        // Return true if we are adding a freeze command
+        return setIterator->type == RestrictedType::GLOBAL_FREEZE;
+    }
+
+    // Check the cache, if it doesn't exist in the cache. Try and read it from database
+    if (passetsGlobalRestrictionCache) {
+        if (passetsGlobalRestrictionCache->Exists(cachedRestrictedGlobal.assetName)) {
+            return true;
+        }
+    }
+
+    if (prestricteddb) {
+        if (prestricteddb->ReadGlobalRestriction(restricted_name)) {
+            if (passetsGlobalRestrictionCache)
+                passetsGlobalRestrictionCache->Put(cachedRestrictedGlobal.assetName, 1);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void ExtractVerifierStringQualifiers(const std::string& verifier, std::set<std::string>& qualifiers)
+{
+    std::string s(verifier);
+
+    std::regex regexSearch = std::regex(R"([A-Z0-9_.]+)");
+    std::smatch match;
+
+    while (std::regex_search(s,match,regexSearch)) {
+        for (auto str : match)
+            qualifiers.insert(str);
+        s = match.suffix().str();
+    }
+}
+
+std::string GetStrippedVerifierString(const std::string& verifier)
+{
+    // Remove all white spaces from the verifier string
+    std::string str_without_whitespaces = LibBoolEE::removeWhitespaces(verifier);
+
+    // Remove all '#' from the verifier string
+    std::string str_without_qualifier_tags = LibBoolEE::removeCharacter(str_without_whitespaces, QUALIFIER_CHAR);
+
+    return str_without_qualifier_tags;
+}
+
+bool CheckVerifierString(const std::string& verifier, std::set<std::string>& setFoundQualifiers, std::string& strError, ErrorReport* errorReport)
+{
+    // If verifier string is true, always return true
+    if (verifier == "true") {
+        return true;
+    }
+
+    // If verifier string is empty, return false
+    if (verifier.empty()) {
+        strError = _("Verifier string can not be empty. To default to true, use \"true\"");
+        if (errorReport) {
+            errorReport->type = ErrorReport::ErrorType::EmptyString;
+            errorReport->strDevData = "bad-txns-null-verifier-empty";
+        }
+        return false;
+    }
+
+    // Remove all white spaces, and # from the string as this is how it will be stored in database, and in the script
+    std::string strippedVerifier = GetStrippedVerifierString(verifier);
+
+    // Check the stripped size to make sure it isn't over 80
+    if (strippedVerifier.length() > 80){
+        strError = _("Verifier string has length greater than 80 after whitespaces and '#' are removed");
+        if (errorReport) {
+            errorReport->type = ErrorReport::ErrorType::LengthToLarge;
+            errorReport->strDevData = "bad-txns-null-verifier-length-greater-than-max-length";
+            errorReport->vecUserData.emplace_back(strippedVerifier);
+        }
+        return false;
+    }
+
+    // Extract the qualifiers from the verifier string
+    ExtractVerifierStringQualifiers(strippedVerifier, setFoundQualifiers);
+
+    // Create an object that stores if an address contains a qualifier
+    LibBoolEE::Vals vals;
+
+    // If the check address is empty
+
+    // set all qualifiers in the verifier to true
+    for (auto qualifier : setFoundQualifiers) {
+
+        std::string edited_qualifier;
+
+        // Qualifer string was stripped above, so we need to add back the #
+        edited_qualifier = QUALIFIER_CHAR + qualifier;
+
+        if (!IsQualifierNameValid(edited_qualifier)) {
+            strError = "bad-txns-null-verifier-invalid-asset-name-" + qualifier;
+            if (errorReport) {
+                errorReport->type = ErrorReport::ErrorType::InvalidQualifierName;
+                errorReport->vecUserData.emplace_back(edited_qualifier);
+                errorReport->strDevData = "bad-txns-null-verifier-invalid-asset-name-" + qualifier;
+            }
+            return false;
+        }
+
+        vals.insert(std::make_pair(qualifier, true));
+    }
+
+    try {
+        LibBoolEE::resolve(verifier, vals, errorReport);
+        return true;
+    } catch (const std::runtime_error& run_error) {
+        if (errorReport) {
+            if (errorReport->type == ErrorReport::ErrorType::NotSetError) {
+                errorReport->type = ErrorReport::ErrorType::InvalidSyntax;
+                errorReport->vecUserData.emplace_back(run_error.what());
+                errorReport->strDevData = "bad-txns-null-verifier-failed-syntax-check";
+            }
+        }
+        strError = "bad-txns-null-verifier-failed-syntax-check";
+        return error("%s : Verifier string failed to resolve. Please check string syntax - exception: %s\n", __func__, run_error.what());
+    }
+}
+
+bool VerifyNullAssetDataFlag(const int& flag, std::string& strError)
+{
+    // Check the flag
+    if (flag != 0 && flag != 1) {
+        strError = "bad-txns-null-data-flag-must-be-0-or-1";
+        return false;
+    }
+
+    return true;
+}
+
+bool VerifyQualifierChange(CAssetsCache& cache, const CNullAssetTxData& data, const std::string& address, std::string& strError)
+{
+    // Check the flag
+    if (!VerifyNullAssetDataFlag(data.flag, strError))
+        return false;
+
+    // Check to make sure we only allow changes to the current status
+    bool fHasQualifier = cache.CheckForAddressQualifier(data.asset_name, address, true);
+    QualifierType type = data.flag ? QualifierType::ADD_QUALIFIER : QualifierType::REMOVE_QUALIFIER;
+    if (type == QualifierType::ADD_QUALIFIER) {
+        if (fHasQualifier) {
+            strError = "bad-txns-null-data-add-qualifier-when-already-assigned";
+            return false;
+        }
+    } else if (type == QualifierType::REMOVE_QUALIFIER) {
+        if (!fHasQualifier) {
+            strError = "bad-txns-null-data-removing-qualifier-when-not-assigned";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool VerifyRestrictedAddressChange(CAssetsCache& cache, const CNullAssetTxData& data, const std::string& address, std::string& strError)
+{
+    // Check the flag
+    if (!VerifyNullAssetDataFlag(data.flag, strError))
+        return false;
+
+    // Get the current status of the asset and the given address
+    bool fIsFrozen = cache.CheckForAddressRestriction(data.asset_name, address, true);
+
+    // Assign the type based on the data
+    RestrictedType type = data.flag ? RestrictedType::FREEZE_ADDRESS : RestrictedType::UNFREEZE_ADDRESS;
+
+    if (type == RestrictedType::FREEZE_ADDRESS) {
+        if (fIsFrozen) {
+            strError = "bad-txns-null-data-freeze-address-when-already-frozen";
+            return false;
+        }
+    } else if (type == RestrictedType::UNFREEZE_ADDRESS) {
+        if (!fIsFrozen) {
+            strError = "bad-txns-null-data-unfreeze-address-when-not-frozen";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool VerifyGlobalRestrictedChange(CAssetsCache& cache, const CNullAssetTxData& data, std::string& strError)
+{
+    // Check the flag
+    if (!VerifyNullAssetDataFlag(data.flag, strError))
+        return false;
+
+    // Get the current status of the asset globally
+    bool fIsGloballyFrozen = cache.CheckForGlobalRestriction(data.asset_name, true);
+
+    // Assign the type based on the data
+    RestrictedType type = data.flag ? RestrictedType::GLOBAL_FREEZE : RestrictedType::GLOBAL_UNFREEZE;
+
+    if (type == RestrictedType::GLOBAL_FREEZE) {
+        if (fIsGloballyFrozen) {
+            strError = "bad-txns-null-data-global-freeze-when-already-frozen";
+            return false;
+        }
+    } else if (type == RestrictedType::GLOBAL_UNFREEZE) {
+        if (!fIsGloballyFrozen) {
+            strError = "bad-txns-null-data-global-unfreeze-when-not-frozen";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+////////////////
+
+
+bool CheckVerifierAssetTxOut(const CTxOut& txout, std::string& strError)
+{
+    CNullAssetTxVerifierString verifier;
+    if (!AssetNullVerifierDataFromScript(txout.scriptPubKey, verifier)) {
+        strError = "bad-txns-null-verifier-data-serialization";
+        return false;
+    }
+
+    // All restricted verifiers should have white spaces stripped from the data before it is added to a script
+    if ((int)verifier.verifier_string.find_first_of(' ') != -1) {
+        strError = "bad-txns-null-verifier-data-contained-whitespaces";
+        return false;
+    }
+
+    // All restricted verifiers should have # stripped from that data before it is added to a script
+    if ((int)verifier.verifier_string.find_first_of('#') != -1) {
+        strError = "bad-txns-null-verifier-data-contained-qualifier-character-#";
+        return false;
+    }
+
+    std::set<std::string> setFoundQualifiers;
+    if (!CheckVerifierString(verifier.verifier_string, setFoundQualifiers, strError))
+        return false;
+
+    return true;
+}
+///////////////
+bool ContextualCheckNullAssetTxOut(const CTxOut& txout, CAssetsCache* assetCache, std::string& strError, std::vector<std::pair<std::string, CNullAssetTxData>>* myNullAssetData)
+{
+    // Get the data from the script
+    CNullAssetTxData data;
+    std::string address;
+    if (!AssetNullDataFromScript(txout.scriptPubKey, data, address)) {
+        strError = "bad-txns-null-asset-data-serialization";
+        return false;
+    }
+
+    // Validate the tx data against the cache, and database
+    if (assetCache) {
+        if (IsAssetNameAQualifier(data.asset_name)) {
+            if (!VerifyQualifierChange(*assetCache, data, address, strError)) {
+                return false;
+            }
+
+        } else if (IsAssetNameAnRestricted(data.asset_name)) {
+            if (!VerifyRestrictedAddressChange(*assetCache, data, address, strError))
+                return false;
+        } else {
+            strError = "bad-txns-null-asset-data-on-non-restricted-or-qualifier-asset";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ContextualCheckGlobalAssetTxOut(const CTxOut& txout, CAssetsCache* assetCache, std::string& strError)
+{
+    // Get the data from the script
+    CNullAssetTxData data;
+    if (!GlobalAssetNullDataFromScript(txout.scriptPubKey, data)) {
+        strError = "bad-txns-null-global-asset-data-serialization";
+        return false;
+    }
+
+    // Validate the tx data against the cache, and database
+    if (assetCache) {
+        if (!VerifyGlobalRestrictedChange(*assetCache, data, strError))
+            return false;
+    }
+    return true;
+}
+
+bool ContextualCheckVerifierAssetTxOut(const CTxOut& txout, CAssetsCache* assetCache, std::string& strError)
+{
+    CNullAssetTxVerifierString verifier;
+    if (!AssetNullVerifierDataFromScript(txout.scriptPubKey, verifier)) {
+        strError = "bad-txns-null-verifier-data-serialization";
+        return false;
+    }
+
+    if (assetCache) {
+        std::string strError = "";
+        std::string address = "";
+        std::string strVerifier = verifier.verifier_string;
+        if (!ContextualCheckVerifierString(assetCache, strVerifier, address, strError))
+            return false;
+    }
+
+    return true;
+}
+
+bool ContextualCheckVerifierString(CAssetsCache* cache, const std::string& verifier, const std::string& check_address, std::string& strError, ErrorReport* errorReport)
+{
+    // If verifier is set to true, return true
+    if (verifier == "true")
+        return true;
+
+    // Check against the non contextual changes first
+    std::set<std::string> setFoundQualifiers;
+    if (!CheckVerifierString(verifier, setFoundQualifiers, strError, errorReport))
+        return false;
+
+    // Loop through each qualifier and make sure that the asset exists
+    for(auto qualifier : setFoundQualifiers) {
+        std::string search = QUALIFIER_CHAR + qualifier;
+        if (!cache->CheckIfAssetExists(search, true)) {
+            if (errorReport) {
+                errorReport->type = ErrorReport::ErrorType::AssetDoesntExist;
+                errorReport->vecUserData.emplace_back(search);
+                errorReport->strDevData = "bad-txns-null-verifier-contains-non-issued-qualifier";
+            }
+            strError = "bad-txns-null-verifier-contains-non-issued-qualifier";
+            return false;
+        }
+    }
+
+    // If we got this far, and the check_address is empty. The CheckVerifyString method already did the syntax checks
+    // No need to do any more checks, as it will fail because the check_address is empty
+    if (check_address.empty())
+        return true;
+
+    // Create an object that stores if an address contains a qualifier
+    LibBoolEE::Vals vals;
+
+    // Add the qualifiers into the vals object
+    for (auto qualifier : setFoundQualifiers) {
+        std::string search = QUALIFIER_CHAR + qualifier;
+
+        // Check to see if the address contains the qualifier
+        bool has_qualifier = cache->CheckForAddressQualifier(search, check_address, true);
+
+        // Add the true or false value into the vals
+        vals.insert(std::make_pair(qualifier, has_qualifier));
+    }
+
+    try {
+        bool ret = LibBoolEE::resolve(verifier, vals, errorReport);
+        if (!ret) {
+            if (errorReport) {
+                if (errorReport->type == ErrorReport::ErrorType::NotSetError) {
+                    errorReport->type = ErrorReport::ErrorType::FailedToVerifyAgainstAddress;
+                    errorReport->vecUserData.emplace_back(check_address);
+                    errorReport->strDevData = "bad-txns-null-verifier-address-failed-verification";
+                }
+            }
+
+            error("%s : The address %s failed to verify against: %s. Is null %d", __func__, check_address, verifier, errorReport ? 0 : 1);
+            strError = "bad-txns-null-verifier-address-failed-verification";
+        }
+        return ret;
+
+    } catch (const std::runtime_error& run_error) {
+        if (errorReport) {
+            if (errorReport->type == ErrorReport::ErrorType::NotSetError) {
+                errorReport->type = ErrorReport::ErrorType::InvalidSyntax;
+            }
+
+            errorReport->vecUserData.emplace_back(run_error.what());
+            errorReport->strDevData = "bad-txns-null-verifier-failed-contexual-syntax-check";
+        }
+
+        strError = "bad-txns-null-verifier-failed-contexual-syntax-check";
+        return error("%s : Verifier string failed to resolve. Please check string syntax - exception: %s\n", __func__, run_error.what());
+    }
+}
+
+bool ContextualCheckTransferAsset(CAssetsCache* assetCache, const CAssetTransfer& transfer, const std::string& address, std::string& strError)
+{
+    strError = "";
+    AssetType assetType;
+    if (!IsAssetNameValid(transfer.strName, assetType)) {
+        strError = "Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.";
+        return false;
+    }
+
+    if (assetType == AssetType::RESTRICTED) {
+        if (!AreRestrictedAssetsDeployed()) {
+            strError = "bad-txns-transfer-restricted-before-it-is-active";
+            return false;
+        }
+
+        if (assetCache) {
+            if (assetCache->CheckForGlobalRestriction(transfer.strName, true)) {
+                strError = "bad-txns-transfer-restricted-asset-that-is-globally-restricted";
+                return false;
+            }
+        }
+
+
+        std::string strError = "";
+        if (!transfer.ContextualCheckAgainstVerifyString(assetCache, address, strError)) {
+            error("%s : %s", __func__, strError);
+            return false;
+        }
+    }
+
+    // If the transfer is a qualifier channel asset.
+    if (assetType == AssetType::QUALIFIER || assetType == AssetType::SUB_QUALIFIER) {
+        if (!AreRestrictedAssetsDeployed()) {
+            strError = "bad-txns-transfer-qualifier-before-it-is-active";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool CheckNewAsset(const CNewAsset& asset, std::string& strError)
+{
+    strError = "";
+
+    AssetType assetType;
+    if (!IsAssetNameValid(std::string(asset.strName), assetType)) {
+        strError = _("Invalid parameter: asset_name must only consist of valid characters and have a size between 3 and 30 characters. See help for more details.");
+        return false;
+    }
+
+    if (assetType == AssetType::UNIQUE || assetType == AssetType::MSGCHANNEL) {
+        if (asset.units != UNIQUE_ASSET_UNITS) {
+            strError = _("Invalid parameter: units must be ") + std::to_string(UNIQUE_ASSET_UNITS);
+            return false;
+        }
+        if (asset.nAmount != UNIQUE_ASSET_AMOUNT) {
+            strError = _("Invalid parameter: amount must be ") + std::to_string(UNIQUE_ASSET_AMOUNT);
+            return false;
+        }
+        if (asset.nReissuable != 0) {
+            strError = _("Invalid parameter: reissuable must be 0");
+            return false;
+        }
+    }
+
+    if (assetType == AssetType::QUALIFIER || assetType == AssetType::SUB_QUALIFIER) {
+        if (asset.units != QUALIFIER_ASSET_UNITS) {
+            strError = _("Invalid parameter: units must be ") + std::to_string(QUALIFIER_ASSET_UNITS);
+            return false;
+        }
+        if (asset.nAmount < QUALIFIER_ASSET_MIN_AMOUNT || asset.nAmount > QUALIFIER_ASSET_MAX_AMOUNT) {
+            strError = _("Invalid parameter: amount must be between ") + std::to_string(QUALIFIER_ASSET_MIN_AMOUNT) + " - " + std::to_string(QUALIFIER_ASSET_MAX_AMOUNT);
+            return false;
+        }
+        if (asset.nReissuable != 0) {
+            strError = _("Invalid parameter: reissuable must be 0");
+            return false;
+        }
+    }
+
+    if (IsAssetNameAnOwner(std::string(asset.strName))) {
+        strError = _("Invalid parameters: asset_name can't have a '!' at the end of it. See help for more details.");
+        return false;
+    }
+
+    if (asset.nAmount <= 0) {
+        strError = _("Invalid parameter: asset amount can't be equal to or less than zero.");
+        return false;
+    }
+
+    if (asset.nAmount > MAX_MONEY) {
+        strError = _("Invalid parameter: asset amount greater than max money: ") + std::to_string(MAX_MONEY / COIN);
+        return false;
+    }
+
+    if (asset.units < 0 || asset.units > 8) {
+        strError = _("Invalid parameter: units must be between 0-8.");
+        return false;
+    }
+
+    if (!CheckAmountWithUnits(asset.nAmount, asset.units)) {
+        strError = _("Invalid parameter: amount must be divisible by the smaller unit assigned to the asset");
+        return false;
+    }
+
+    if (asset.nReissuable != 0 && asset.nReissuable != 1) {
+        strError = _("Invalid parameter: reissuable must be 0 or 1");
+        return false;
+    }
+
+    if (asset.nHasIPFS != 0 && asset.nHasIPFS != 1) {
+        strError = _("Invalid parameter: has_ipfs must be 0 or 1.");
+        return false;
+    }
+
+    return true;
+}
+
+bool ContextualCheckNewAsset(CAssetsCache* assetCache, const CNewAsset& asset, std::string& strError, bool fCheckMempool)
+{
+    if (!AreAssetsDeployed() && !fUnitTest) {
+        strError = "bad-txns-new-asset-when-assets-is-not-active";
+        return false;
+    }
+
+    if (!CheckNewAsset(asset, strError))
+        return false;
+
+    // Check our current cache to see if the asset has been created yet
+    if (assetCache->CheckIfAssetExists(asset.strName, true)) {
+        strError = std::string(_("Invalid parameter: asset_name '")) + asset.strName + std::string(_("' has already been used"));
+        return false;
+    }
+
+    // Check the mempool
+    if (fCheckMempool) {
+        if (mempool.mapAssetToHash.count(asset.strName)) {
+            strError = _("Asset with this name is already in the mempool");
+            return false;
+        }
+    }
+
+    if (asset.nHasIPFS) {
+        if (!CheckEncoded(asset.strIPFSHash, strError))
+            return false;
+    }
+
+    return true;
+}
+
+bool CheckReissueAsset(const CReissueAsset& asset, std::string& strError)
+{
+    strError = "";
+
+    if (asset.nAmount < 0 || asset.nAmount >= MAX_MONEY) {
+        strError = _("Unable to reissue asset: amount must be 0 or larger");
+        return false;
+    }
+
+    if (asset.nUnits > MAX_UNIT || asset.nUnits < -1) {
+        strError = _("Unable to reissue asset: unit must be between 8 and -1");
+        return false;
+    }
+
+    if (asset.nReissuable != 0 && asset.nReissuable != 1) {
+        strError = _("Unable to reissue asset: reissuable must be 0 or 1");
+        return false;
+    }
+
+    AssetType type;
+    IsAssetNameValid(asset.strName, type);
+
+    if (type == AssetType::RESTRICTED) {
+        // TODO Add checks for restricted asset if we can come up with any
+    }
+
+    return true;
+}
+
+bool ContextualCheckReissueAsset(CAssetsCache* assetCache, const CReissueAsset& reissue_asset, std::string& strError, const CTransaction& tx)
+{
+    // We are using this just to get the strAddress
+    CReissueAsset reissue;
+    std::string strAddress;
+    if (!ReissueAssetFromTransaction(tx, reissue, strAddress)) {
+        strError = "bad-txns-reissue-asset-contextual-check";
+        return false;
+    }
+
+    // run non contextual checks
+    if (!CheckReissueAsset(reissue_asset, strError))
+        return false;
+
+    // Check previous asset data with the reissuesd data
+    CNewAsset prev_asset;
+    if (!assetCache->GetAssetMetaDataIfExists(reissue_asset.strName, prev_asset)) {
+        strError = _("Unable to reissue asset: asset_name '") + reissue_asset.strName + _("' doesn't exist in the database");
+        return false;
+    }
+
+    if (!prev_asset.nReissuable) {
+        // Check to make sure the asset can be reissued
+        strError = _("Unable to reissue asset: reissuable is set to false");
+        return false;
+    }
+
+    if (prev_asset.nAmount + reissue_asset.nAmount > MAX_MONEY) {
+        strError = _("Unable to reissue asset: asset_name '") + reissue_asset.strName +
+                   _("' the amount trying to reissue is to large");
+        return false;
+    }
+
+    if (!CheckAmountWithUnits(reissue_asset.nAmount, prev_asset.units)) {
+        strError = _("Unable to reissue asset: amount must be divisible by the smaller unit assigned to the asset");
+        return false;
+    }
+
+    if (reissue_asset.nUnits < prev_asset.units && reissue_asset.nUnits != -1) {
+        strError = _("Unable to reissue asset: unit must be larger than current unit selection");
+        return false;
+    }
+
+    // Check the ipfs hash
+    if (reissue_asset.strIPFSHash != "" && reissue_asset.strIPFSHash.size() != 34) {
+        strError = _("Invalid parameter: ipfs_hash must be 34 bytes, Txid must be 32 bytes");
+        return false;
+    }
+
+    if (reissue_asset.strIPFSHash != "") {
+        if (!CheckEncoded(reissue_asset.strIPFSHash, strError))
+            return false;
+    }
+
+    if (IsAssetNameAnRestricted(reissue_asset.strName)) {
+        CNullAssetTxVerifierString new_verifier;
+        bool fNotFound = false;
+
+        // Try and get the verifier string if it was changed
+        if (!tx.GetVerifierStringFromTx(new_verifier, strError, fNotFound)) {
+            // If it return false for any other reason besides not being found, fail the transaction check
+            if (!fNotFound) {
+                return false;
+            }
+        }
+
+        if (reissue_asset.nAmount > 0) {
+            // If it wasn't found, get the current verifier and validate against it
+            if (fNotFound) {
+                CNullAssetTxVerifierString current_verifier;
+                if (assetCache->GetAssetVerifierStringIfExists(reissue_asset.strName, current_verifier)) {
+                    if (!ContextualCheckVerifierString(assetCache, current_verifier.verifier_string, strAddress, strError))
+                        return false;
+                } else {
+                    // This should happen, but if it does. The wallet needs to shutdown,
+                    // TODO, remove this after restricted assets have been tested in testnet for some time, and this hasn't happened yet. It this has happened. Investigation is required by the dev team
+                    error("%s : failed to get verifier string from a restricted asset, this shouldn't happen, database is out of sync. Reindex required. Please report this is to development team asset name: %s, txhash : %s",__func__, reissue_asset.strName, tx.GetHash().GetHex());
+                    strError = "failed to get verifier string from a restricted asset, database is out of sync. Reindex required. Please report this is to development team";
+                    return false;
+                }
+            } else {
+                if (!ContextualCheckVerifierString(assetCache, new_verifier.verifier_string, strAddress, strError))
+                    return false;
+            }
+        }
+    }
+
+
+    return true;
+}
+
+bool ContextualCheckReissueAsset(CAssetsCache* assetCache, const CReissueAsset& reissue_asset, std::string& strError)
+{
+    // run non contextual checks
+    if (!CheckReissueAsset(reissue_asset, strError))
+        return false;
+
+    // Check previous asset data with the reissuesd data
+    if (assetCache) {
+        CNewAsset prev_asset;
+        if (!assetCache->GetAssetMetaDataIfExists(reissue_asset.strName, prev_asset)) {
+            strError = _("Unable to reissue asset: asset_name '") + reissue_asset.strName +
+                       _("' doesn't exist in the database");
+            return false;
+        }
+
+        if (!prev_asset.nReissuable) {
+            // Check to make sure the asset can be reissued
+            strError = _("Unable to reissue asset: reissuable is set to false");
+            return false;
+        }
+
+        if (prev_asset.nAmount + reissue_asset.nAmount > MAX_MONEY) {
+            strError = _("Unable to reissue asset: asset_name '") + reissue_asset.strName +
+                       _("' the amount trying to reissue is to large");
+            return false;
+        }
+
+        if (!CheckAmountWithUnits(reissue_asset.nAmount, prev_asset.units)) {
+            strError = _("Unable to reissue asset: amount must be divisible by the smaller unit assigned to the asset");
+            return false;
+        }
+
+        if (reissue_asset.nUnits < prev_asset.units && reissue_asset.nUnits != -1) {
+            strError = _("Unable to reissue asset: unit must be larger than current unit selection");
+            return false;
+        }
+    }
+
+    // Check the ipfs hash
+    if (reissue_asset.strIPFSHash != "" && reissue_asset.strIPFSHash.size() != 34) {
+        strError = _("Invalid parameter: ipfs_hash must be 34 bytes, Txid must be 32 bytes");
+        return false;
+    }
+
+    if (reissue_asset.strIPFSHash != "") {
+        if (!CheckEncoded(reissue_asset.strIPFSHash, strError))
+            return false;
+    }
+
+    return true;
+}
+
+bool ContextualCheckUniqueAssetTx(CAssetsCache* assetCache, std::string& strError, const CTransaction& tx)
+{
+    for (auto out : tx.vout)
+    {
+        if (IsScriptNewUniqueAsset(out.scriptPubKey))
+        {
+            CNewAsset asset;
+            std::string strAddress;
+            if (!AssetFromScript(out.scriptPubKey, asset, strAddress)) {
+                strError = "bad-txns-issue-unique-serialization-failed";
+                return false;
+            }
+
+            if (!ContextualCheckUniqueAsset(assetCache, asset, strError))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+std::string GetUserErrorString(const ErrorReport& report)
+{
+    switch (report.type) {
+        case ErrorReport::ErrorType::NotSetError: return _("Error not set");
+        case ErrorReport::ErrorType::InvalidQualifierName: return _("Invalid Qualifier Name: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::EmptyString: return _("Verifier string is empty");
+        case ErrorReport::ErrorType::LengthToLarge: return _("Length is to large. Please use a smaller length");
+        case ErrorReport::ErrorType::InvalidSubExpressionFormula: return _("Invalid expressions in verifier string: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::InvalidSyntax: return _("Invalid syntax: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::AssetDoesntExist: return _("Asset doesn't exist: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::FailedToVerifyAgainstAddress: return _("This address doesn't contain the correct tags to pass the verifier string check: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::EmptySubExpression: return _("The verifier string has two operators without a tag between them");
+        case ErrorReport::ErrorType::UnknownOperator: return _("The symbol: '") + report.vecUserData[0] + _("' is not a valid character in the expression: ") + report.vecUserData[1];
+        case ErrorReport::ErrorType::ParenthesisParity: return _("Every '(' must have a corresponding ')' in the expression: ") + report.vecUserData[0];
+        case ErrorReport::ErrorType::VariableNotFound: return _("Variable is not allow in the expression: '") + report.vecUserData[0] + "'";;
+        default:
+            return _("Error not set");
+    }
+}
+
+bool ContextualCheckUniqueAsset(CAssetsCache* assetCache, const CNewAsset& unique_asset, std::string& strError)
+{
+    if (!ContextualCheckNewAsset(assetCache, unique_asset, strError))
+        return false;
+
+    return true;
 }

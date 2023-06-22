@@ -81,6 +81,8 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
         return false;
+    case TX_RESTRICTED_ASSET_DATA:
+        return false;
     /** XBTX START */
     case TX_NEW_ASSET:
         keyID = CKeyID(uint160(vSolutions[0]));

@@ -23,6 +23,7 @@ class AddressBookPage;
 class AssetsDialog;
 class CreateAssetDialog;
 class ReissueAssetDialog;
+class RestrictedAssetsDialog;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -75,11 +76,12 @@ private:
     const PlatformStyle *platformStyle;
 
 
-    /** RVN START */
+    /** XBTX START */
     AssetsDialog *assetsPage;
     CreateAssetDialog *createAssetsPage;
     ReissueAssetDialog *manageAssetsPage;
-    /** RVN END */
+    RestrictedAssetsDialog *restrictedAssetsPage;
+    /** XBTX END */
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
@@ -125,12 +127,13 @@ public Q_SLOTS:
     void requestedSyncWarningInfo();
 
 
-    /** RVN START */
+    /** XBTX START */
     /** Switch to assets page */
     void gotoAssetsPage();
     void gotoCreateAssetsPage();
     void gotoManageAssetsPage();
-    /** RVN END */
+    void gotoRestrictedAssetsPage();
+    /** XBTX END */
 
 Q_SIGNALS:
     /** Signal that we want to show the main window */
