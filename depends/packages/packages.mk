@@ -8,13 +8,11 @@ qt_linux_packages:=qt expat dbus libxcb xcb_proto libXau xproto freetype fontcon
 qt_darwin_packages=qt
 qt_mingw32_packages=qt
 
-wallet_packages=bdb curl
+wallet_packages=bdb
 
 zmq_packages=zeromq
 
 upnp_packages=miniupnpc
-
-adns_packages=expat libunbound
 
 darwin_native_packages = native_biplist native_ds_store native_mac_alias
 
