@@ -1,7 +1,6 @@
 package=expat
 $(package)_version=2.2.1
-$(package)_download_path=https://github.com/libexpat/libexpat/releases/R_2_1_1/
-$(package)_file_name=$(package)-$($(package)_version).tar.bz2
+$(package)_download_path=https://github.com/libexpat/libexpat/releases/download/R_2_1_1/expat-2.1.1.tar.bz2
 $(package)_sha256_hash=1868cadae4c82a018e361e2b2091de103cd820aaacb0d6cfa49bd2cd83978885
 
 define $(package)_set_vars
